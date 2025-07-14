@@ -22,7 +22,34 @@ current_log = None
 last_point = {"lat": None, "lng": None, "ts": None}
 
 
+def write_to_log(mac, lat, lng):
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    log_dir = './logs'
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Check for existing files for that MAC address
+    log_file_pattern = f'{log_dir}/gps_log_{mac.replace(":", "-").upper()}_{today}_'
+    existing_files = [f for f in os.listdir(log_dir) if f.startswith(log_file_pattern)]
+    log_file = log_file_pattern + '0.txt'  # Default to first file
+
+    # Determine the next available file or split the current one if too many points
+    if existing_files:
+        last_file = sorted(existing_files)[-1]
+        with open(os.path.join(log_dir, last_file), 'r') as f:
+            lines = f.readlines()
+            if len(lines) >= MAX_POINTS_PER_FILE:
+                next_file_num = int(last_file.split('_')[-1].replace('.txt', '')) + 1
+                log_file = f'{log_file_pattern}{next_file_num}.txt'
+
+    # Write to the selected file
+    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    with open(log_file, 'a', encoding='utf-8') as f:
+        f.write(f"{timestamp},{lat},{lng},{mac}\n")
+    print(f"Data written to: {log_file}")
+
+
 def haversine(lat1, lon1, lat2, lon2):
+    print("Function: haversine()")
     R = 6371000
     d_lat = radians(lat2 - lat1)
     d_lon = radians(lon2 - lon1)
@@ -32,16 +59,19 @@ def haversine(lat1, lon1, lat2, lon2):
 
 @app.route('/')
 def index():
+    print("Function: index()")
     return render_template('index.html')
 
 
 @app.route('/map')
 def show_map():
+    print("Function: show_map()")
     return render_template('map.html')
 
 
 @app.route('/logs')
 def show_logs():
+    print("Function: show_logs()")
     date = request.args.get('date') or datetime.utcnow().strftime('%Y-%m-%d')
     session_files = sorted([f for f in os.listdir('.') if f.startswith(f'gps_log_{date}_') and f.endswith('.txt')])
     if not session_files:
@@ -65,124 +95,109 @@ def show_logs():
 
 @app.route('/gps', methods=['POST'])
 def receive_gps():
-    global last_point, current_log
-    log_dir = './logs'  # Define a logs directory
-    os.makedirs(log_dir, exist_ok=True)  # Ensure the logs directory exists
+    print("Function: receive_gps() called")
 
-    # Fetch the incoming GPS data from the POST request
-    lat = request.form.get('gps_data_lat')
-    lng = request.form.get('gps_data_lng')
-    mac = request.form.get('mac') or "UNKNOWN"
+    # Parse the incoming JSON data
+    data = request.get_json()  # This should read the JSON body
 
-    # Ensure latitude and longitude are provided
-    if not lat or not lng:
-        return "Missing parameters", 400
+    if not data:
+        print("Error: No JSON data received")
+        return jsonify({"error": "No data received"}), 400
 
-    # Try to convert latitude and longitude to float
-    try:
-        lat = float(lat)
-        lng = float(lng)
-    except ValueError:
-        return "Invalid coordinates", 400
+    # Extract the necessary parameters from the JSON data
+    mac = data.get('mac')
+    lat = data.get('latitude')  # Note: Use 'latitude' here
+    lng = data.get('longitude')  # Note: Use 'longitude' here
 
-    # Get current timestamp and format it
-    now = datetime.utcnow()
-    timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
-    today = now.strftime('%Y-%m-%d')
+    print(f"Received MAC: {mac}")
+    print(f"Received Latitude: {lat}, Longitude: {lng}")
 
-    # Clean the MAC address to make it safe for filenames
-    mac_safe = mac.replace(":", "-").upper()
+    if not mac or lat is None or lng is None:
+        print("Error: Missing required parameters")
+        return jsonify({"error": "Missing parameters"}), 400
 
-    # Set the initial log file name if not already set
-    if not current_log:
-        current_log = f'{log_dir}/gps_log_{mac_safe}_{today}_0.txt'
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    log_dir = './logs'
+    os.makedirs(log_dir, exist_ok=True)
 
-    # Log the current log file name for debugging
-    print(f"Writing to log file: {current_log}")
+    # Log the GPS data to a file
+    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    log_file = f'{log_dir}/gps_log_{mac.replace(":", "-").upper()}_{today}_0.txt'
 
-    # Check if a rollover is needed (i.e., file has too many entries)
-    rollover_needed = False
-    if os.path.exists(current_log):
-        with open(current_log, 'r', encoding='utf-8', errors='ignore') as f:
-            if sum(1 for _ in f) >= MAX_POINTS_PER_FILE:
-                rollover_needed = True
-
-    # If a rollover is needed, create a new log file
-    if rollover_needed:
-        try:
-            index = int(current_log.split("_")[-1].split(".")[0])
-        except:
-            index = 0
-        current_log = f'{log_dir}/gps_log_{mac_safe}_{today}_{index + 1}.txt'
-
-    # Update the last point
-    last_point = {"lat": lat, "lng": lng, "ts": now}
-
-    # Write the new GPS data to the log file
-    with open(current_log, 'a', encoding='utf-8', errors='ignore') as f:
+    with open(log_file, 'a', encoding='utf-8') as f:
         f.write(f"{timestamp},{lat},{lng},{mac}\n")
+        print(f"Data written to: {log_file}")
 
-    # Log the file where data is written
-    print(f"Data written to: {current_log}")
-
-    # Return a success message
-    return f"Data received from {mac} and logged to {current_log}.", 200
+    return jsonify({"status": "success", "message": "Data logged successfully"}), 200
 
 
 @app.route('/api/coords')
+@app.route('/api/coords')
 def get_coords():
-    mac = request.args.get('mac')  # Retrieve 'mac' parameter from query string
+    print("Function: get_coords()")
+    mac = request.args.get('mac')
 
+    print(f"Received MAC: {mac}")
     if not mac:
-        print("Error: No MAC address provided")  # Log error if no MAC is provided
-        return jsonify({"error": "MAC address is required"}), 400  # Return error if no mac is provided
+        print("Error: No MAC address provided")
+        return jsonify({"error": "MAC address is required"}), 400
 
     today = datetime.utcnow().strftime('%Y-%m-%d')
-    log_dir = './logs'  # Define the logs directory
-    os.makedirs(log_dir, exist_ok=True)  # Create the directory if it doesn't exist
+    log_dir = './logs'
+    os.makedirs(log_dir, exist_ok=True)
 
     try:
-        # Check if session files exist for today
+        # Adjust file pattern to include MAC and date
+        file_prefix = f'gps_log_{mac.replace(":", "-").upper()}_{today}_'
+
+        # List files with the adjusted prefix (matching MAC and date)
         session_files = sorted(
-            [f for f in os.listdir(log_dir) if f.startswith(f'gps_log_{today}_') and f.endswith('.txt')])
+            [f for f in os.listdir(log_dir) if f.startswith(file_prefix) and f.endswith('.txt')])
+
+        print(f"Session files found for today ({today}): {session_files}")  # Debug log files found
 
         if not session_files:
             print(f"No session files found for today ({today}).")  # Log if no session files are found
-            return jsonify([])  # Return empty list if no session files for today
+            return jsonify([])
 
         coords = []
         for log_file in session_files:
-            print(f"Processing file: {log_file}")  # Log the file being processed
-            with open(os.path.join(log_dir, log_file), 'r') as f:  # Ensure we're reading from the correct directory
+            print(f"Processing file: {log_file}")  # Log which file is being processed
+            with open(os.path.join(log_dir, log_file), 'r') as f:
                 for line in f:
                     parts = line.strip().split(',')
                     print(f"Reading line: {line.strip()}")  # Log the line being read
 
-                    if len(parts) >= 4 and parts[3] == mac:  # Ensure the mac address matches
+                    if len(parts) >= 4 and parts[3] == mac:  # Check if the MAC address matches
                         try:
                             coords.append({'lat': float(parts[1]), 'lng': float(parts[2])})
                         except ValueError:
                             print(f"Error: Invalid coordinates in line: {line.strip()}")  # Log invalid coordinates
                             continue  # Skip lines with invalid coordinates
 
-        # Debugging: Log the final coordinates returned
+        # Log the final coordinates found
         print(f"Coordinates found for MAC {mac}: {coords}")
+
+        if not coords:
+            print(f"No coordinates found for MAC {mac}.")  # Log when no matching coordinates are found
+
         return jsonify(coords)
 
     except Exception as e:
-        # Catch any exception and return an error message
         print(f"Error occurred while processing request: {e}")
         return jsonify({"error": "An error occurred while processing the request"}), 500
 
 
 @app.route('/routes')
 def list_routes():
+    print("Function: list_routes()")
     saved_routes = [f.replace('.json', '') for f in os.listdir(ROUTES_DIR) if f.endswith('.json')]
     return jsonify(saved_routes)
 
 
 @app.route('/routes/save', methods=['POST'])
 def save_route():
+    print("Function: save_route()")
     data = request.json
     name = data.get('name')
     coords = data.get('coords')
@@ -197,6 +212,7 @@ def save_route():
 
 @app.route('/routes/load/<name>')
 def load_route(name):
+    print("Function: load_route()")
     path = os.path.join(ROUTES_DIR, f'{name}.json')
     if not os.path.exists(path):
         return "Route not found", 404
@@ -207,6 +223,7 @@ def load_route(name):
 
 @app.route('/routes/delete/<name>', methods=['DELETE'])
 def delete_route(name):
+    print("Function: delete_route()")
     path = os.path.join(ROUTES_DIR, f'{name}.json')
     if os.path.exists(path):
         os.remove(path)
@@ -215,5 +232,6 @@ def delete_route(name):
 
 
 if __name__ == '__main__':
+    print("Function: main()")
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)

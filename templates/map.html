@@ -78,31 +78,99 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
-// Function to fetch live route
-function fetchLiveRoute(mac = '') {
-  let url = '/api/coords';
-  if (mac) {
-    url += `?mac=${mac}`;  // Include mac if provided
+let macAddress = '08:3A:8D:DE:E5:10';  // Default MAC address for testing, replace with actual MAC when available
+
+function fetchLiveRoute(mac) {
+  if (!mac || mac.trim() === '') {
+    console.log("Error: MAC address is missing!");
+    return;  // Exit if MAC address is missing or empty
   }
+
+  console.log("Function: fetchLiveRoute() called");
+
+  let url = `/api/coords?mac=${mac}`;
+
+  console.log(`Requesting URL: ${url}`);
 
   fetch(url)
     .then(res => res.json())
     .then(data => {
-      if (!data.length) return;
-
-      // Check if MAC exists in data[0] (optional)
-      if (data[0].mac) {
-        document.getElementById('mac-value').textContent = data[0].mac;
-        document.getElementById('mac-label').style.display = 'block';
+      console.log("Response data:", data);
+      if (!Array.isArray(data) || data.length === 0) {
+        console.log("No coordinates found for this MAC address.");
+        return;  // Exit if no data or invalid data is returned
       }
 
+      // Draw route if coordinates are found
       liveCoords = data.map(p => [p.lat, p.lng]);
       drawRoute(liveCoords, 'blue');
+
+      // Update the MAC label
+      document.getElementById('mac-value').textContent = mac;
+      document.getElementById('mac-label').style.display = 'block';
+
+      // Send latest coordinates data
+      const latestData = data[data.length - 1]; // Get the latest data point
+      sendGpsData(latestData.lat, latestData.lng, mac);
+    })
+    .catch(err => {
+      console.log("Error fetching data:", err);
     });
+}
+
+function toggleAutoUpdate() {
+  autoUpdate = !autoUpdate;
+  const toggleBtn = document.getElementById('toggleAuto');
+  const refreshBtn = document.getElementById('manualRefresh');
+
+  if (autoUpdate) {
+    toggleBtn.textContent = "Auto-Update: ON";
+    refreshBtn.style.display = "none";
+    if (macAddress) {  // Ensure valid MAC address is present before starting the interval
+      intervalId = setInterval(() => fetchLiveRoute(macAddress), 5000);
+    } else {
+      console.log("Error: No MAC address available for auto-update");
+    }
+  } else {
+    toggleBtn.textContent = "Auto-Update: OFF";
+    refreshBtn.style.display = "inline-block";
+    clearInterval(intervalId);
+  }
+}
+
+// Call fetchLiveRoute only if MAC address is valid
+if (macAddress) {
+  fetchLiveRoute(macAddress);  // Initially fetch live route with valid MAC
+} else {
+  console.log("Error: No MAC address to fetch data");
+}
+
+intervalId = setInterval(() => {
+  if (macAddress) {  // Check for a valid MAC address before making the request
+    fetchLiveRoute(macAddress);
+  }
+}, 5000);
+
+// Retry function in case of failure
+function retryFetch(mac) {
+  let retries = 3;
+  let attempt = 0;
+
+  const retryInterval = setInterval(() => {
+    if (attempt >= retries) {
+      console.log("Max retry attempts reached.");
+      clearInterval(retryInterval);  // Stop retries after max attempts
+      return;
+    }
+    attempt++;
+    console.log(`Retrying fetch... Attempt ${attempt}`);
+    fetchLiveRoute(mac);  // Attempt to fetch again
+  }, 5000);  // Retry every 5 seconds
 }
 
 // Function to draw the route on the map
 function drawRoute(coords, color) {
+  console.log("Function: drawRoute() called with coords:", coords);  // Debugging entry point
   if (routeLine) map.removeLayer(routeLine);
   if (startMarker) map.removeLayer(startMarker);
   if (endMarker) map.removeLayer(endMarker);
@@ -119,6 +187,8 @@ function toggleAutoUpdate() {
   const toggleBtn = document.getElementById('toggleAuto');
   const refreshBtn = document.getElementById('manualRefresh');
 
+  console.log("Function: toggleAutoUpdate() called");  // Debugging entry point
+
   if (autoUpdate) {
     toggleBtn.textContent = "Auto-Update: ON";
     refreshBtn.style.display = "none";
@@ -132,6 +202,7 @@ function toggleAutoUpdate() {
 
 // Save current route
 function saveRoute() {
+  console.log("Function: saveRoute() called");  // Debugging entry point
   if (!liveCoords.length) return alert("Nothing to save.");
   const name = prompt("Enter name to save this route:");
   if (!name.match(/^[a-zA-Z0-9_-]+$/)) return alert("Invalid name!");
@@ -147,6 +218,7 @@ function saveRoute() {
 
 // Load saved route
 function loadRoute() {
+  console.log("Function: loadRoute() called");  // Debugging entry point
   const name = document.getElementById('savedRoutes').value;
   if (!name) return;
   fetch(`/routes/load/${name}`)
@@ -159,6 +231,7 @@ function loadRoute() {
 
 // Delete saved route
 function deleteRoute() {
+  console.log("Function: deleteRoute() called");  // Debugging entry point
   const name = document.getElementById('savedRoutes').value;
   if (!name) return;
   if (!confirm(`Delete route "${name}"?`)) return;
@@ -171,6 +244,7 @@ function deleteRoute() {
 
 // Play route (live or saved)
 function playRoute() {
+  console.log("Function: playRoute() called");  // Debugging entry point
   const source = document.getElementById('playSelect').value;
 
   if (animMarker) map.removeLayer(animMarker);
@@ -195,6 +269,7 @@ function playRoute() {
 
 // Animate route on the map
 function animateRoute(coords) {
+  console.log("Function: animateRoute() called");  // Debugging entry point
   if (!coords.length) return;
   let i = 0;
   animMarker = L.marker(coords[0]).addTo(map);
@@ -206,6 +281,7 @@ function animateRoute(coords) {
 
 // Clear all routes and markers from the map
 function clearRoute() {
+  console.log("Function: clearRoute() called");  // Debugging entry point
   if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
   if (animMarker) { map.removeLayer(animMarker); animMarker = null; }
   if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
@@ -214,6 +290,7 @@ function clearRoute() {
 
 // Fetch saved routes from the server
 function fetchSavedRoutes() {
+  console.log("Function: fetchSavedRoutes() called");  // Debugging entry point
   fetch('/routes')
     .then(res => res.json())
     .then(routes => {
@@ -228,8 +305,40 @@ function fetchSavedRoutes() {
     });
 }
 
+// Function to send GPS data to the server via POST
+function sendGpsData(lat, lng, mac) {
+  console.log("Function: sendGpsData() called with lat:", lat, "lng:", lng, "mac:", mac);  // Debugging entry point
+
+  // Prepare the JSON payload
+  const jsonPayload = {
+    latitude: lat,
+    longitude: lng,
+    mac: mac
+  };
+
+  // Log the payload before sending
+  console.log("Sending data:", jsonPayload);
+
+  // Use fetch to send the data as JSON
+  fetch('/gps', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'  // Set content type to JSON
+    },
+    body: JSON.stringify(jsonPayload)  // Convert the object to JSON
+  })
+  .then(response => response.json())  // Expect a JSON response from the server
+  .then(data => {
+    console.log("Data sent successfully:", data);  // Log the server response
+  })
+  .catch(error => {
+    console.error("Error sending GPS data:", error);  // Log any errors
+  });
+}
+
 // Show speed graph
 function showSpeedGraph() {
+  console.log("Function: showSpeedGraph() called");  // Debugging entry point
   if (!liveCoords.length) return alert("No data to analyze speed.");
   const speeds = [];
   for (let i = 1; i < liveCoords.length; i++) {
