@@ -1,0 +1,8 @@
+Flask
+osmnx
+shapely
+scipy
+numpy
+geopandas
+requests
+

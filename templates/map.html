@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Live Map{% endblock %}
+
+{% block content %}
+<h2>Live GPS Route</h2>
+
+<div style="margin-bottom: 1rem;">
+  <button onclick="saveRoute()">💾 Save Route</button>
+  <select id="savedRoutes" onchange="loadRoute()">
+    <option value="">📁 Load Saved Route</option>
+  </select>
+  <button onclick="deleteRoute()">🗑️ Delete Route</button>
+
+  <select id="playSelect" style="margin-left: 0.5rem;">
+    <option value="live">▶️ Play Live Route</option>
+    <option value="saved">▶️ Play Saved Route</option>
+  </select>
+  <button onclick="playRoute()">▶️ Play</button>
+
+  <button onclick="clearRoute()">🧹 Clear Map</button>
+</div>
+
+<div style="margin-bottom: 1rem;">
+  <button id="toggleAuto" onclick="toggleAutoUpdate()">Auto-Update: ON</button>
+  <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
+</div>
+
+<!-- MAC Label -->
+<div id="mac-label" style="
+  position: absolute;
+  top: 12px;
+  right: 20px;
+  background-color: rgba(31, 31, 31, 0.9);
+  color: #80ffd3;
+  padding: 6px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  border: 1px solid #80ffd3;
+  border-radius: 4px;
+  z-index: 999;
+  display: none;">
+  MAC: <span id="mac-value">N/A</span>
+</div>
+
+<!-- Map container -->
+<div id="map" style="height: 80vh;"></div>
+
+<!-- Analysis tools widget (separate from map) -->
+<div id="analysis-widget">
+  <h4>🧮 Analysis</h4>
+  <button onclick="showElevation()">Elevation Profile</button>
+  <button onclick="showSpeedGraph()">Speed Graph</button>
+  <button onclick="toggleHeatmap()">Toggle Heatmap</button>
+  <button onclick="detectIdleStops()">Detect Idle</button>
+  <button onclick="colorBySpeed()">Color by Speed</button>
+</div>
+
+<!-- Leaflet JS + CSS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block script_extra %}
+<script>
+let map = L.map('map').setView([37.5, 22.37], 16);
+let routeLine = null;
+let liveCoords = [];
+let animMarker = null;
+let startMarker = null;
+let endMarker = null;
+
+let autoUpdate = true;
+let intervalId = null;
+let heatLayer = null;
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// Function to fetch live route
+function fetchLiveRoute(mac = '') {
+  let url = '/api/coords';
+  if (mac) {
+    url += `?mac=${mac}`;  // Include mac if provided
+  }
+
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
+      if (!data.length) return;
+
+      // Check if MAC exists in data[0] (optional)
+      if (data[0].mac) {
+        document.getElementById('mac-value').textContent = data[0].mac;
+        document.getElementById('mac-label').style.display = 'block';
+      }
+
+      liveCoords = data.map(p => [p.lat, p.lng]);
+      drawRoute(liveCoords, 'blue');
+    });
+}
+
+// Function to draw the route on the map
+function drawRoute(coords, color) {
+  if (routeLine) map.removeLayer(routeLine);
+  if (startMarker) map.removeLayer(startMarker);
+  if (endMarker) map.removeLayer(endMarker);
+
+  routeLine = L.polyline(coords, { color: color || 'blue' }).addTo(map);
+  startMarker = L.marker(coords[0], { title: 'Start' }).addTo(map).bindPopup('🚩 Start');
+  endMarker = L.marker(coords[coords.length - 1], { title: 'End' }).addTo(map).bindPopup('🏁 End');
+  map.fitBounds(routeLine.getBounds());
+}
+
+// Toggle auto-update for the live route
+function toggleAutoUpdate() {
+  autoUpdate = !autoUpdate;
+  const toggleBtn = document.getElementById('toggleAuto');
+  const refreshBtn = document.getElementById('manualRefresh');
+
+  if (autoUpdate) {
+    toggleBtn.textContent = "Auto-Update: ON";
+    refreshBtn.style.display = "none";
+    intervalId = setInterval(fetchLiveRoute, 5000);
+  } else {
+    toggleBtn.textContent = "Auto-Update: OFF";
+    refreshBtn.style.display = "inline-block";
+    clearInterval(intervalId);
+  }
+}
+
+// Save current route
+function saveRoute() {
+  if (!liveCoords.length) return alert("Nothing to save.");
+  const name = prompt("Enter name to save this route:");
+  if (!name.match(/^[a-zA-Z0-9_-]+$/)) return alert("Invalid name!");
+  fetch('/routes/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, coords: liveCoords.map(c => ({ lat: c[0], lng: c[1] })) })
+  }).then(() => {
+    alert("Route saved!");
+    fetchSavedRoutes();
+  });
+}
+
+// Load saved route
+function loadRoute() {
+  const name = document.getElementById('savedRoutes').value;
+  if (!name) return;
+  fetch(`/routes/load/${name}`)
+    .then(res => res.json())
+    .then(data => {
+      const loaded = data.map(p => [p.lat, p.lng]);
+      drawRoute(loaded, 'green');
+    });
+}
+
+// Delete saved route
+function deleteRoute() {
+  const name = document.getElementById('savedRoutes').value;
+  if (!name) return;
+  if (!confirm(`Delete route "${name}"?`)) return;
+  fetch(`/routes/delete/${name}`, { method: 'DELETE' })
+    .then(() => {
+      alert("Route deleted!");
+      fetchSavedRoutes();
+    });
+}
+
+// Play route (live or saved)
+function playRoute() {
+  const source = document.getElementById('playSelect').value;
+
+  if (animMarker) map.removeLayer(animMarker);
+
+  if (source === 'live') {
+    if (!liveCoords.length) {
+      alert("No live route data available.");
+      return;
+    }
+    animateRoute(liveCoords);
+  } else {
+    const name = document.getElementById('savedRoutes').value;
+    if (!name) return alert("Select a saved route to play.");
+    fetch(`/routes/load/${name}`)
+      .then(res => res.json())
+      .then(data => {
+        const coords = data.map(p => [p.lat, p.lng]);
+        animateRoute(coords);
+      });
+  }
+}
+
+// Animate route on the map
+function animateRoute(coords) {
+  if (!coords.length) return;
+  let i = 0;
+  animMarker = L.marker(coords[0]).addTo(map);
+  const interval = setInterval(() => {
+    if (i >= coords.length) return clearInterval(interval);
+    animMarker.setLatLng(coords[i++]);
+  }, 300);
+}
+
+// Clear all routes and markers from the map
+function clearRoute() {
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  if (animMarker) { map.removeLayer(animMarker); animMarker = null; }
+  if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+  if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
+}
+
+// Fetch saved routes from the server
+function fetchSavedRoutes() {
+  fetch('/routes')
+    .then(res => res.json())
+    .then(routes => {
+      const dropdown = document.getElementById('savedRoutes');
+      dropdown.innerHTML = '<option value="">📁 Load Saved Route</option>';
+      routes.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        dropdown.appendChild(opt);
+      });
+    });
+}
+
+// Show speed graph
+function showSpeedGraph() {
+  if (!liveCoords.length) return alert("No data to analyze speed.");
+  const speeds = [];
+  for (let i = 1; i < liveCoords.length; i++) {
+    const [lat1, lng1] = liveCoords[i - 1];
+    const [lat2, lng2] = liveCoords[i];
+    const dist = map.distance([lat1, lng1], [lat2, lng2]);
+    speeds.push((dist / 5).toFixed(2)); // rough speed estimate assuming 5s interval
+  }
+  const ctx = document.createElement('canvas');
+  document.body.appendChild(ctx);
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: speeds.map((_, i) => i + 1),
+      datasets: [{ label: 'Speed (m/s)', data: speeds, borderColor: 'red', fill: false }]
+    }
+  });
+}
+
+intervalId = setInterval(() => fetchLiveRoute('08:3A:3A:8D:DE:E5:10'), 5000);  // Example mac address
+fetchSavedRoutes();
+</script>
+{% endblock %}
