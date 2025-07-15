@@ -2,27 +2,57 @@
 {% block title %}Logs{% endblock %}
 {% block head_extra %}
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css"/>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
 {% endblock %}
 
 {% block content %}
   <h2>GPS Logs</h2>
-  <table id="logTable" class="display">
-    <thead>
-      <tr><th>Timestamp</th><th>Latitude</th><th>Longitude</th></tr>
-    </thead>
-    <tbody>
-      {% for log in logs %}
+
+  <!-- Log filter form -->
+  <form method="GET" action="/logs">
+    <div style="margin-bottom: 1rem;">
+      <label for="date">Select Date: </label>
+      <input type="date" id="date" name="date" value="{{ date }}" required>
+
+      <label for="file">Filter by File: </label>
+      <input type="text" id="file" name="file" placeholder="Enter file name filter" value="{{ file_filter }}">
+
+      <button type="submit">Apply Filters</button>
+    </div>
+  </form>
+
+  <!-- List existing log files -->
+  <h3>Existing Log Files</h3>
+  <ul>
+    {% for log_file in files %}
+      <li>{{ log_file }}</li>
+    {% endfor %}
+  </ul>
+
+  <!-- Display log entries if any -->
+  {% if logs %}
+    <table id="logTable" class="display">
+      <thead>
         <tr>
-          <td>{{ log.timestamp }}</td>
-          <td>{{ log.lat }}</td>
-          <td>{{ log.lng }}</td>
+          <th>Timestamp</th>
+          <th>Latitude</th>
+          <th>Longitude</th>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+          <tr>
+            <td>{{ log.timestamp }}</td>
+            <td>{{ log.lat }}</td>
+            <td>{{ log.lng }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>{{ message or "No logs found matching the filters." }}</p>
+  {% endif %}
 
   <script>
     $(document).ready(() => {

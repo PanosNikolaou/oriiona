@@ -69,17 +69,42 @@ def show_map():
     return render_template('map.html')
 
 
-@app.route('/logs')
+# Define the logs directory one level up from the current directory
+LOGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.', 'logs')
+
+# Ensure the logs directory exists, create it if it doesn't
+if not os.path.exists(LOGS_DIR):
+    print(f"Logs directory does not exist. Creating it at: {LOGS_DIR}")
+    os.makedirs(LOGS_DIR)
+
+# Route to show logs with filters
+@app.route('/logs', methods=['GET', 'POST'])
 def show_logs():
     print("Function: show_logs()")
-    date = request.args.get('date') or datetime.utcnow().strftime('%Y-%m-%d')
-    session_files = sorted([f for f in os.listdir('.') if f.startswith(f'gps_log_{date}_') and f.endswith('.txt')])
-    if not session_files:
-        return "No logs found.", 404
 
+    # Get the date filter from the form or default to today's date
+    date_filter = request.args.get('date', datetime.utcnow().strftime('%Y-%m-%d'))
+
+    # Get the filename filter if provided (default to empty string)
+    file_filter = request.args.get('file', '')
+
+    # List all log files matching the filters in the specific logs directory
+    log_files = [
+        f for f in os.listdir(LOGS_DIR)
+        if f.startswith('gps_log_') and f.endswith('.txt')  # No date filter, just looking for gps_log_ files
+           and (file_filter in f)  # Apply file name filter
+    ]
+
+    # Sort files by the filename (for order)
+    log_files.sort()
+
+    # Initialize an empty list to hold logs
     rows = []
-    for log_file in session_files:
-        with open(log_file, 'r') as f:
+
+    # Read logs from the filtered files
+    for log_file in log_files:
+        file_path = os.path.join(LOGS_DIR, log_file)
+        with open(file_path, 'r') as f:
             for line in f:
                 parts = line.strip().split(',')
                 if len(parts) == 4:
@@ -90,7 +115,8 @@ def show_logs():
                         'mac': parts[3]
                     })
 
-    return render_template('logs.html', logs=rows, date=date)
+    # Render the logs template with filtered data
+    return render_template('logs.html', logs=rows, date=date_filter, files=log_files)
 
 
 @app.route('/gps', methods=['POST'])
@@ -130,8 +156,6 @@ def receive_gps():
 
     return jsonify({"status": "success", "message": "Data logged successfully"}), 200
 
-
-@app.route('/api/coords')
 @app.route('/api/coords')
 def get_coords():
     print("Function: get_coords()")

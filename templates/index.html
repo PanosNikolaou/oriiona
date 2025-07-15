@@ -4,4 +4,29 @@
 {% block content %}
   <h2>Welcome to the GPS Tracker Dashboard</h2>
   <p>Select <strong>Live Map</strong> or <strong>Logs</strong> from the sidebar to begin.</p>
+
+  <h3>About Orriona GPS Tracker</h3>
+  <p>
+    Orriona is a DIY GPS tracking solution designed for precision and real-time location tracking. The tracker integrates the
+    <strong>Wemos D1</strong> microcontroller, which is based on the <strong>ESP8266</strong> Wi-Fi module, and the <strong>NEO-6M</strong> GPS module.
+    This system is ideal for applications requiring continuous GPS tracking with embedded data logging capabilities.
+  </p>
+
+  <h4>Wemos D1 and NEO-6M GPS Tracker Overview</h4>
+  <p>
+    The <strong>Wemos D1</strong> board serves as the core microcontroller. It's equipped with the ESP8266 chip, which provides Wi-Fi connectivity. The
+    <strong>NEO-6M GPS module</strong> receives GPS signals from satellites, processes them, and communicates the position data to the Wemos D1.
+    The Wemos D1 then sends the location data via Wi-Fi to the server or logs it for later use.
+  </p>
+
+  <h5>How Does the NEO-6M GPS Module Work?</h5>
+  <p>
+    The NEO-6M GPS module works by receiving signals from the GPS satellites orbiting Earth. Once it gets a signal from at least three satellites, it can
+    calculate its latitude, longitude, and altitude with great accuracy. This information is sent to the Wemos D1, which acts as the interface between the
+    GPS module and your network, enabling real-time tracking.
+  </p>
+
+  <h4>Diagram: How NEO-6M GPS Module Connects with Satellites</h4>
+  <img src="{{ url_for('static', filename='A_flat-style_digital_illustration_diagram_illustra.png') }}" alt="GPS Tracker Diagram" width="600px">
+
 {% endblock %}
