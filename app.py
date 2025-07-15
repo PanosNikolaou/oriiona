@@ -1,4 +1,6 @@
 import logging
+import time
+
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime
 from math import radians, cos, sin, asin, sqrt
@@ -56,6 +58,27 @@ def write_to_log(mac, lat, lng):
         f.write(f"{timestamp},{lat},{lng},{mac}\n")
     logger.debug(f"Data written to: {log_file}")
 
+import math
+import requests
+from datetime import datetime
+
+
+def get_utc_time_with_retry(retries=3, delay=5):
+    url = 'https://api.exchangerate-api.com/v4/latest/UTC'  # Example API that can return UTC time, can be replaced with others
+    for attempt in range(retries):
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raise an error for invalid status codes
+            data = response.json()
+            utc_time = data['time']  # Adjust based on API response structure
+            return utc_time
+        except (requests.RequestException, KeyError) as e:
+            print(f"Error fetching UTC time (Attempt {attempt + 1}/{retries}): {e}")
+            if attempt < retries - 1:
+                time.sleep(delay)  # Wait before retrying
+            else:
+                print("Max retries reached. Using local time instead.")
+                return datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')  # Fallback to local system time
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -271,6 +294,7 @@ def get_coords():
                                     lng = float(parts[2])
 
                                     # **Generate the timestamp inside the loop** for each coordinate
+                                    # timestamp = get_utc_time_with_retry()
                                     timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                                     logger.debug(f"Generated timestamp: {timestamp}")
 
@@ -310,23 +334,58 @@ def get_coords():
 @app.route('/routes')
 def list_routes():
     logger.debug("Function: list_routes()")
-    saved_routes = [f.replace('.json', '') for f in os.listdir(ROUTES_DIR) if f.endswith('.json')]
-    return jsonify(saved_routes)
+    try:
+        # Get all route files (those ending with .json) in the routes directory
+        saved_routes = [f.replace('.json', '') for f in os.listdir(ROUTES_DIR) if f.endswith('.json')]
+
+        # Log the list of saved routes
+        logger.debug(f"Saved routes found: {saved_routes}")
+
+        return jsonify(saved_routes)
+    except Exception as e:
+        # Log any exception that occurs during the file reading process
+        logger.error(f"Error reading saved routes: {e}")
+        return jsonify({"error": "Error fetching routes"}), 500
 
 
 @app.route('/routes/save', methods=['POST'])
 def save_route():
     logger.debug("Function: save_route()")
-    data = request.json
-    name = data.get('name')
-    coords = data.get('coords')
-    if not name or not coords:
-        return "Missing data", 400
-    if any(c not in name for c in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-'):
-        return "Invalid characters in route name", 400
-    with open(os.path.join(ROUTES_DIR, f'{name}.json'), 'w') as f:
-        json.dump(coords, f)
-    return "Route saved", 200
+
+    try:
+        # Get the data from the request
+        data = request.json
+        logger.debug(f"Received data: {data}")
+
+        name = data.get('name')
+        coords = data.get('coords')
+
+        # Validate the data
+        if not name or not coords:
+            logger.error("Missing data: Name or coordinates are required.")
+            return "Missing data", 400
+
+        # Validate route name (only allows alphanumeric characters, hyphens, and underscores)
+        if any(c not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_' for c in name):
+            logger.error(f"Invalid route name: {name}")
+            return "Invalid characters in route name", 400
+
+        # Log the route file path
+        route_file_path = os.path.join(ROUTES_DIR, f'{name}.json')
+        logger.debug(f"Saving route to: {route_file_path}")
+
+        # Save the route data to a JSON file in the `./routes` directory
+        with open(route_file_path, 'w') as f:
+            json.dump(coords, f)
+
+        # Log success
+        logger.debug(f"Route saved successfully to {route_file_path}")
+        return "Route saved", 200
+
+    except Exception as e:
+        # Log any exception that occurs during the route saving process
+        logger.error(f"Error saving route: {e}")
+        return jsonify({"error": "Error saving route"}), 500
 
 
 @app.route('/routes/load/<name>')
