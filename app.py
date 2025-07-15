@@ -27,6 +27,8 @@ logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %
 logger = logging.getLogger(__name__)
 
 
+from datetime import datetime
+
 def write_to_log(mac, lat, lng):
     today = datetime.utcnow().strftime('%Y-%m-%d')
     log_dir = './logs'
@@ -46,14 +48,14 @@ def write_to_log(mac, lat, lng):
                 next_file_num = int(last_file.split('_')[-1].replace('.txt', '')) + 1
                 log_file = f'{log_file_pattern}{next_file_num}.txt'
 
-    # Create timestamp
-    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    # Write each coordinate with its own timestamp
+    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')  # Generate timestamp for each point
     logger.debug(f"Timestamp to be written: {timestamp}")  # Debugging line to print the timestamp
 
-    # Write to the selected file
     with open(log_file, 'a', encoding='utf-8') as f:
         f.write(f"{timestamp},{lat},{lng},{mac}\n")
     logger.debug(f"Data written to: {log_file}")
+
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -191,9 +193,16 @@ def receive_gps():
 from datetime import datetime
 
 
-def filter_coords(new_coord, last_coord, threshold=0.00001):
+def filter_coords(new_coord, last_coord, threshold_lat=0.00000009, threshold_lng=0.00000009):
     """
-    Filters out coordinates that haven't changed significantly (based on a threshold).
+    Filters out coordinates that haven't changed significantly (based on a threshold in degrees).
+    The threshold is based on a 1 cm change in latitude/longitude.
+
+    :param new_coord: The new coordinates to compare
+    :param last_coord: The previous coordinates
+    :param threshold_lat: The threshold for latitude (default 1 cm)
+    :param threshold_lng: The threshold for longitude (default 1 cm)
+    :return: Boolean indicating whether the new coordinates are significantly different
     """
     if not last_coord:
         return True  # Always accept the first coordinate
@@ -201,8 +210,10 @@ def filter_coords(new_coord, last_coord, threshold=0.00001):
     lat_diff = abs(new_coord['lat'] - last_coord['lat'])
     lng_diff = abs(new_coord['lng'] - last_coord['lng'])
 
-    return lat_diff >= threshold or lng_diff >= threshold
+    return lat_diff >= threshold_lat or lng_diff >= threshold_lng
 
+
+from datetime import datetime
 
 @app.route('/api/coords')
 def get_coords():
@@ -258,12 +269,15 @@ def get_coords():
                                 try:
                                     lat = float(parts[1])
                                     lng = float(parts[2])
+
+                                    # **Generate the timestamp inside the loop** for each coordinate
                                     timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                                    logger.debug(f"Generated timestamp: {timestamp}")
 
                                     new_coord = {'lat': lat, 'lng': lng, 'timestamp': timestamp}
 
                                     # Only append the new coordinate if it differs significantly from the last one
-                                    if filter_coords(new_coord, last_coord):
+                                    if filter_coords(new_coord, last_coord, threshold_lat=0.00000009, threshold_lng=0.00000009):
                                         coords.append(new_coord)
                                         logger.debug(f"Coordinates added: lat={lat}, lng={lng}, timestamp={timestamp}")
                                         last_coord = new_coord
