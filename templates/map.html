@@ -23,6 +23,8 @@
 <div style="margin-bottom: 1rem;">
   <button id="toggleAuto" onclick="toggleAutoUpdate()">Auto-Update: ON</button>
   <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
+  <label for="loggingToggle">Enable Logging:</label>
+  <input type="checkbox" id="loggingToggle" checked> <!-- Default to checked (logging enabled) -->
 </div>
 
 <!-- MAC Label -->
@@ -80,6 +82,8 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let macAddress = '08:3A:8D:DE:E5:10';  // Default MAC address for testing, replace with actual MAC when available
 
+let previousCoords = null;  // Initialize the previous coordinates globally
+
 function fetchLiveRoute(mac) {
   if (!mac || mac.trim() === '') {
     console.log("Error: MAC address is missing!");
@@ -101,8 +105,27 @@ function fetchLiveRoute(mac) {
         return;  // Exit if no data or invalid data is returned
       }
 
+      // Check if the coordinates have changed
+      const latestCoords = data[data.length - 1];
+      const { lat, lng, timestamp } = latestCoords;
+      console.log(`Latest coordinates: lat=${lat}, lng=${lng}, timestamp=${timestamp}`);
+
+      if (previousCoords && previousCoords.lat === lat && previousCoords.lng === lng) {
+        console.log("Received the same coordinates as the previous one. Skipping update.");
+        return;  // Exit if the coordinates haven't changed
+      }
+
+      // Update the previous coordinates to the latest one
+      previousCoords = { lat, lng };
+
       // Draw route if coordinates are found
       liveCoords = data.map(p => [p.lat, p.lng]);
+
+      // Optionally, display timestamps or other data for debugging or rendering purposes
+      data.forEach(coord => {
+        console.log(`Coordinate at ${coord.timestamp}: lat=${coord.lat}, lng=${coord.lng}`);
+      });
+
       drawRoute(liveCoords, 'blue');
 
       // Update the MAC label
@@ -110,8 +133,7 @@ function fetchLiveRoute(mac) {
       document.getElementById('mac-label').style.display = 'block';
 
       // Send latest coordinates data
-      const latestData = data[data.length - 1]; // Get the latest data point
-      sendGpsData(latestData.lat, latestData.lng, mac);
+      sendGpsData(lat, lng, mac);
     })
     .catch(err => {
       console.log("Error fetching data:", err);
@@ -307,17 +329,21 @@ function fetchSavedRoutes() {
 
 // Function to send GPS data to the server via POST
 function sendGpsData(lat, lng, mac) {
-  console.log("Function: sendGpsData() called with lat:", lat, "lng:", lng, "mac:", mac);  // Debugging entry point
+  console.log(`Function: sendGpsData() called with lat: ${lat}, lng: ${lng}, mac: ${mac}`);  // Debugging entry point
+
+  // Get the value of the logging toggle checkbox
+  const loggingEnabled = document.getElementById("loggingToggle").checked;  // true if checked, false if unchecked
 
   // Prepare the JSON payload
   const jsonPayload = {
     latitude: lat,
     longitude: lng,
-    mac: mac
+    mac: mac,
+    logging_enabled: loggingEnabled  // Include the logging flag in the request payload
   };
 
   // Log the payload before sending
-  console.log("Sending data:", jsonPayload);
+  console.log(`Sending data: ${JSON.stringify(jsonPayload)}`);
 
   // Use fetch to send the data as JSON
   fetch('/gps', {
@@ -358,7 +384,7 @@ function showSpeedGraph() {
   });
 }
 
-intervalId = setInterval(() => fetchLiveRoute('08:3A:3A:8D:DE:E5:10'), 5000);  // Example mac address
+<!--intervalId = setInterval(() => fetchLiveRoute('08:3A:3A:8D:DE:E5:10'), 5000);  // Example mac address-->
 fetchSavedRoutes();
 </script>
 {% endblock %}

@@ -1,3 +1,4 @@
+import logging
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime
 from math import radians, cos, sin, asin, sqrt
@@ -21,6 +22,10 @@ MAX_POINTS_PER_FILE = 500
 current_log = None
 last_point = {"lat": None, "lng": None, "ts": None}
 
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 
 def write_to_log(mac, lat, lng):
     today = datetime.utcnow().strftime('%Y-%m-%d')
@@ -41,15 +46,18 @@ def write_to_log(mac, lat, lng):
                 next_file_num = int(last_file.split('_')[-1].replace('.txt', '')) + 1
                 log_file = f'{log_file_pattern}{next_file_num}.txt'
 
-    # Write to the selected file
+    # Create timestamp
     timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+    logger.debug(f"Timestamp to be written: {timestamp}")  # Debugging line to print the timestamp
+
+    # Write to the selected file
     with open(log_file, 'a', encoding='utf-8') as f:
         f.write(f"{timestamp},{lat},{lng},{mac}\n")
-    print(f"Data written to: {log_file}")
+    logger.debug(f"Data written to: {log_file}")
 
 
 def haversine(lat1, lon1, lat2, lon2):
-    print("Function: haversine()")
+    logger.debug("Function: haversine()")
     R = 6371000
     d_lat = radians(lat2 - lat1)
     d_lon = radians(lon2 - lon1)
@@ -59,13 +67,13 @@ def haversine(lat1, lon1, lat2, lon2):
 
 @app.route('/')
 def index():
-    print("Function: index()")
+    logger.debug("Function: index()")
     return render_template('index.html')
 
 
 @app.route('/map')
 def show_map():
-    print("Function: show_map()")
+    logger.debug("Function: show_map()")
     return render_template('map.html')
 
 
@@ -74,13 +82,13 @@ LOGS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.', 'logs')
 
 # Ensure the logs directory exists, create it if it doesn't
 if not os.path.exists(LOGS_DIR):
-    print(f"Logs directory does not exist. Creating it at: {LOGS_DIR}")
+    logger.info(f"Logs directory does not exist. Creating it at: {LOGS_DIR}")
     os.makedirs(LOGS_DIR)
 
 # Route to show logs with filters
 @app.route('/logs', methods=['GET', 'POST'])
 def show_logs():
-    print("Function: show_logs()")
+    logger.debug("Function: show_logs()")
 
     # Get the date filter from the form or default to today's date
     date_filter = request.args.get('date', datetime.utcnow().strftime('%Y-%m-%d'))
@@ -121,50 +129,95 @@ def show_logs():
 
 @app.route('/gps', methods=['POST'])
 def receive_gps():
-    print("Function: receive_gps() called")
+    logger.debug("Function: receive_gps() called")
 
     # Parse the incoming JSON data
     data = request.get_json()  # This should read the JSON body
+    logger.debug(f"Received raw data: {data}")
 
     if not data:
-        print("Error: No JSON data received")
+        logger.error("Error: No JSON data received")
         return jsonify({"error": "No data received"}), 400
 
     # Extract the necessary parameters from the JSON data
     mac = data.get('mac')
-    lat = data.get('latitude')  # Note: Use 'latitude' here
-    lng = data.get('longitude')  # Note: Use 'longitude' here
+    lat = data.get('latitude')
+    lng = data.get('longitude')
+    logging_enabled = data.get('logging_enabled', True)  # Default to True if not provided
 
-    print(f"Received MAC: {mac}")
-    print(f"Received Latitude: {lat}, Longitude: {lng}")
+    logger.debug(f"Received MAC: {mac}")
+    logger.debug(f"Received Latitude: {lat}, Longitude: {lng}")
+    logger.debug(f"Logging Enabled: {logging_enabled}")
 
     if not mac or lat is None or lng is None:
-        print("Error: Missing required parameters")
+        logger.error("Error: Missing required parameters")
         return jsonify({"error": "Missing parameters"}), 400
 
+    # Debugging for logging enabled/disabled
+    if logging_enabled:
+        logger.info("Logging is ENABLED. Proceeding to log GPS data.")
+    else:
+        logger.info("Logging is DISABLED. Skipping GPS data logging.")
+
+    # Check for duplicate coordinates (compare with previous ones)
     today = datetime.utcnow().strftime('%Y-%m-%d')
     log_dir = './logs'
     os.makedirs(log_dir, exist_ok=True)
 
-    # Log the GPS data to a file
-    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-    log_file = f'{log_dir}/gps_log_{mac.replace(":", "-").upper()}_{today}_0.txt'
+    file_prefix = f'gps_log_{mac.replace(":", "-").upper()}_{today}_'
+    session_files = sorted(
+        [f for f in os.listdir(log_dir) if f.startswith(file_prefix) and f.endswith('.txt')])
 
-    with open(log_file, 'a', encoding='utf-8') as f:
-        f.write(f"{timestamp},{lat},{lng},{mac}\n")
-        print(f"Data written to: {log_file}")
+    if session_files:
+        last_log_file = session_files[-1]  # Get the most recent file
+        with open(os.path.join(log_dir, last_log_file), 'r') as f:
+            last_line = f.readlines()[-1].strip()
+            last_lat, last_lng = last_line.split(',')[1:3]
+            logger.debug(f"Last saved coordinates: Latitude: {last_lat}, Longitude: {last_lng}")
 
-    return jsonify({"status": "success", "message": "Data logged successfully"}), 200
+            if str(lat) == last_lat and str(lng) == last_lng:
+                logger.warning("Received coordinates are the same as the previous ones. Skipping logging.")
+                return jsonify({"status": "success", "message": "Duplicate coordinates received"}), 200
+
+    # Call the write_to_log function if logging is enabled
+    if logging_enabled:
+        logger.info("Logging is enabled, writing data to log.")
+        write_to_log(mac, lat, lng)
+
+    logger.info("Returning success response.")
+    return jsonify({"status": "success", "message": "Data received and processed"}), 200
+
+
+from datetime import datetime
+
+
+def filter_coords(new_coord, last_coord, threshold=0.00001):
+    """
+    Filters out coordinates that haven't changed significantly (based on a threshold).
+    """
+    if not last_coord:
+        return True  # Always accept the first coordinate
+
+    lat_diff = abs(new_coord['lat'] - last_coord['lat'])
+    lng_diff = abs(new_coord['lng'] - last_coord['lng'])
+
+    return lat_diff >= threshold or lng_diff >= threshold
+
 
 @app.route('/api/coords')
 def get_coords():
-    print("Function: get_coords()")
+    logger.debug("Function: get_coords()")
     mac = request.args.get('mac')
 
-    print(f"Received MAC: {mac}")
+    # Log the full request arguments to debug if 'mac' is being passed correctly
+    logger.debug(f"Request arguments: {request.args}")
+
+    # Check if `mac` is None or an empty string
     if not mac:
-        print("Error: No MAC address provided")
+        logger.error("Error: No MAC address provided")
         return jsonify({"error": "MAC address is required"}), 400
+
+    logger.debug(f"Received MAC: {mac}")  # Ensure `mac` is being set correctly here
 
     today = datetime.utcnow().strftime('%Y-%m-%d')
     log_dir = './logs'
@@ -178,50 +231,78 @@ def get_coords():
         session_files = sorted(
             [f for f in os.listdir(log_dir) if f.startswith(file_prefix) and f.endswith('.txt')])
 
-        print(f"Session files found for today ({today}): {session_files}")  # Debug log files found
+        logger.debug(f"Session files found for today ({today}): {session_files}")
 
         if not session_files:
-            print(f"No session files found for today ({today}).")  # Log if no session files are found
+            logger.warning(f"No session files found for MAC {mac} on {today}.")
             return jsonify([])
 
         coords = []
+        last_coord = None  # Track the last coordinate added to the list
+
         for log_file in session_files:
-            print(f"Processing file: {log_file}")  # Log which file is being processed
-            with open(os.path.join(log_dir, log_file), 'r') as f:
-                for line in f:
-                    parts = line.strip().split(',')
-                    print(f"Reading line: {line.strip()}")  # Log the line being read
+            logger.debug(f"Processing file: {log_file}")
 
-                    if len(parts) >= 4 and parts[3] == mac:  # Check if the MAC address matches
-                        try:
-                            coords.append({'lat': float(parts[1]), 'lng': float(parts[2])})
-                        except ValueError:
-                            print(f"Error: Invalid coordinates in line: {line.strip()}")  # Log invalid coordinates
-                            continue  # Skip lines with invalid coordinates
+            try:
+                with open(os.path.join(log_dir, log_file), 'r') as f:
+                    logger.debug(f"Opened file {log_file} for reading.")
+                    for line in f:
+                        line = line.strip()  # Clean up the line
+                        logger.debug(f"Reading line: {line}")
 
-        # Log the final coordinates found
-        print(f"Coordinates found for MAC {mac}: {coords}")
+                        parts = line.split(',')
+                        logger.debug(f"Line split into parts: {parts}")
 
-        if not coords:
-            print(f"No coordinates found for MAC {mac}.")  # Log when no matching coordinates are found
+                        if len(parts) >= 4:
+                            if parts[3] == mac:
+                                try:
+                                    lat = float(parts[1])
+                                    lng = float(parts[2])
+                                    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+
+                                    new_coord = {'lat': lat, 'lng': lng, 'timestamp': timestamp}
+
+                                    # Only append the new coordinate if it differs significantly from the last one
+                                    if filter_coords(new_coord, last_coord):
+                                        coords.append(new_coord)
+                                        logger.debug(f"Coordinates added: lat={lat}, lng={lng}, timestamp={timestamp}")
+                                        last_coord = new_coord
+                                    else:
+                                        logger.debug("Coordinates haven't changed significantly. Skipping update.")
+                                except ValueError as e:
+                                    logger.error(f"Invalid coordinates in line: {line}. Error: {e}")
+                                    continue
+                            else:
+                                logger.debug(f"Skipping line with mismatched MAC address: {parts[3]} != {mac}")
+                        else:
+                            logger.warning(f"Skipping line with incorrect number of parts: {line}")
+
+            except Exception as e:
+                logger.error(f"Error processing file {log_file} for MAC {mac}: {e}")
+
+        logger.debug(f"Total coordinates collected for MAC {mac}: {len(coords)}")
+        if coords:
+            logger.info(f"Coordinates found for MAC {mac}: {coords[:5]}...")
+        else:
+            logger.warning(f"No coordinates found for MAC {mac}.")
 
         return jsonify(coords)
 
     except Exception as e:
-        print(f"Error occurred while processing request: {e}")
+        logger.error(f"Error occurred while processing request: {e}")
         return jsonify({"error": "An error occurred while processing the request"}), 500
 
 
 @app.route('/routes')
 def list_routes():
-    print("Function: list_routes()")
+    logger.debug("Function: list_routes()")
     saved_routes = [f.replace('.json', '') for f in os.listdir(ROUTES_DIR) if f.endswith('.json')]
     return jsonify(saved_routes)
 
 
 @app.route('/routes/save', methods=['POST'])
 def save_route():
-    print("Function: save_route()")
+    logger.debug("Function: save_route()")
     data = request.json
     name = data.get('name')
     coords = data.get('coords')
@@ -236,7 +317,7 @@ def save_route():
 
 @app.route('/routes/load/<name>')
 def load_route(name):
-    print("Function: load_route()")
+    logger.debug("Function: load_route()")
     path = os.path.join(ROUTES_DIR, f'{name}.json')
     if not os.path.exists(path):
         return "Route not found", 404
@@ -247,7 +328,7 @@ def load_route(name):
 
 @app.route('/routes/delete/<name>', methods=['DELETE'])
 def delete_route(name):
-    print("Function: delete_route()")
+    logger.debug("Function: delete_route()")
     path = os.path.join(ROUTES_DIR, f'{name}.json')
     if os.path.exists(path):
         os.remove(path)
@@ -256,6 +337,6 @@ def delete_route(name):
 
 
 if __name__ == '__main__':
-    print("Function: main()")
+    logger.debug("Function: main()")
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
