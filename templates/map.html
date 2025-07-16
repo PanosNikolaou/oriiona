@@ -4,7 +4,6 @@
 {% block content %}
 
 <style>
-  /* Top control panel style */
   .top-panel {
     display: flex;
     justify-content: flex-start;
@@ -15,7 +14,7 @@
     border-radius: 8px;
     margin-bottom: 20px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    flex-wrap: wrap;  /* Allow wrapping if there are too many elements */
+    flex-wrap: wrap;
   }
 
   .top-panel button, .top-panel select {
@@ -34,82 +33,25 @@
     background-color: #45a049;
   }
 
-  .top-panel select {
-    padding: 8px;
-    font-size: 14px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-  }
+  #toggleAuto { background-color: #4CAF50; }
+  #toggleAuto:hover { background-color: #45a049; }
+  #manualRefresh { background-color: #2196F3; }
+  #manualRefresh:hover { background-color: #1976D2; }
+  #loggingToggle { background-color: #4CAF50; }
+  #loggingToggle:hover { background-color: #e53935; }
+  #loggingToggle.off { background-color: #f44336; }
+  #loggingToggle.off:hover { background-color: #45a049; }
 
-  /* Style for the Auto-Update Button */
-  #toggleAuto {
-    background-color: #4CAF50; /* Green background for Auto-Update */
-    color: white; /* White text */
-    padding: 10px 20px; /* Padding for button */
-    margin: 5px 10px; /* Margin between buttons */
-    border: none; /* No border */
-    border-radius: 5px; /* Rounded corners */
-    cursor: pointer; /* Pointer cursor on hover */
-    font-size: 14px; /* Font size */
-    transition: background-color 0.3s ease; /* Smooth transition */
-  }
-
-  /* Hover effect for Auto-Update Button */
-  #toggleAuto:hover {
-    background-color: #45a049; /* Darker green on hover */
-  }
-
-  /* Style for the Manual Refresh Button */
-  #manualRefresh {
-    background-color: #2196F3; /* Blue background for Refresh button */
-    color: white; /* White text */
-    padding: 10px 20px; /* Padding for button */
-    margin: 5px 10px; /* Margin between buttons */
-    border: none; /* No border */
-    border-radius: 5px; /* Rounded corners */
-    cursor: pointer; /* Pointer cursor on hover */
-    font-size: 14px; /* Font size */
-    transition: background-color 0.3s ease; /* Smooth transition */
-  }
-
-  /* Hover effect for Manual Refresh Button */
-  #manualRefresh:hover {
-    background-color: #1976D2; /* Darker blue on hover */
-  }
-
-  /* Hide the refresh button by default */
-  #manualRefresh[style="display:none;"] {
-    display: none; /* Keeps it hidden when not needed */
-  }
-
-  /* Custom button for toggling Auto-Update and Logging */
-  #loggingToggle {
-    background-color: #4CAF50;
-  }
-
-  #loggingToggle:hover {
-    background-color: #e53935;
-  }
-
-  #loggingToggle.off {
-    background-color: #f44336;
-  }
-
-  #loggingToggle.off:hover {
-    background-color: #45a049;
-  }
-
-  /* Map container style */
   #map {
     height: 80vh;
     width: 100%;
   }
 
-  /* Optional analysis widget style */
   #analysis-widget {
     background-color: #333;
     color: white;
     padding: 10px;
+    margin-right: 10px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 300px;
@@ -131,54 +73,88 @@
   #analysis-widget button:hover {
     background-color: #1976D2;
   }
-</style>
 
+  #gps-panel {
+    position: relative;
+    top: 10px;         /* distance from top of page, adjust as needed */
+    left: 50px;        /* distance from left edge */
+    width: 150px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 14px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 14px;
+    color: #000;
+    z-index: 999;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+
+  #gps-probe {
+    font-size: 18px;
+    transition: color 0.3s;
+  }
+
+  .gps-on {
+    color: limegreen;
+    animation: blink 0.6s step-start infinite;
+  }
+
+  .gps-off {
+    color: gray;
+  }
+
+  @keyframes blink {
+    50% { color: transparent; }
+  }
+
+  #mac-label {
+    position: absolute;
+    top: 12px;
+    right: 20px;
+    background-color: rgba(31, 31, 31, 0.9);
+    color: #80ffd3;
+    padding: 6px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    border: 1px solid #80ffd3;
+    border-radius: 4px;
+    z-index: 999;
+    display: none;
+  }
+</style>
 
 <h2>Live GPS Route</h2>
 
-<!-- Top Control Panel (horizontal layout) -->
-<div id="top-panel" class="top-panel">
+<div class="top-panel">
   <button onclick="saveRoute()">💾 Save Route</button>
   <select id="savedRoutes" onchange="loadRoute()">
     <option value="">📁 Load Saved Route</option>
   </select>
   <button onclick="deleteRoute()">🗑️ Delete Route</button>
-
   <select id="playSelect">
     <option value="live">▶️ Play Live Route</option>
     <option value="saved">▶️ Play Saved Route</option>
   </select>
   <button onclick="playRoute()">▶️ Play</button>
-
   <button onclick="clearRoute()">🧹 Clear Map</button>
-
   <button id="toggleAuto" onclick="toggleAutoUpdate()">Auto-Update: ON</button>
   <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
   <button id="loggingToggle" onclick="toggleLogging()">Enable Logging: ON</button>
+
 </div>
 
-<!-- Map container -->
-<div id="map" style="height: 80vh;"></div>
-
-<!-- MAC Label -->
-<div id="mac-label" style="
-  position: absolute;
-  top: 12px;
-  right: 20px;
-  background-color: rgba(31, 31, 31, 0.9);
-  color: #80ffd3;
-  padding: 6px 12px;
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-  border: 1px solid #80ffd3;
-  border-radius: 4px;
-  z-index: 999;
-  display: none;">
-  MAC: <span id="mac-value">N/A</span>
+<div id="map">  <!-- GPS Panel -->
+<div id="gps-panel">
+  <div><strong>Latitude:</strong> <span id="lat-display">--</span></div>
+  <div><strong>Longitude:</strong> <span id="lng-display">--</span></div>
+  <div><strong>Speed:</strong> <span id="speed-display">--</span> km/h</div>
+  <div><strong>GPS Probe:</strong> <span id="gps-probe" class="gps-off">●</span></div>
 </div>
+  <!-- MAC label -->
+<div id="mac-label">MAC: <span id="mac-value">N/A</span></div>
 
-<!-- Analysis tools widget (optional, can be included) -->
-<div id="analysis-widget" class="control-panel">
+<div id="analysis-widget">
   <h4>🧮 Analysis</h4>
   <button onclick="showElevation()">Elevation Profile</button>
   <button onclick="showSpeedGraph()">Speed Graph</button>
@@ -186,11 +162,15 @@
   <button onclick="detectIdleStops()">Detect Idle</button>
   <button onclick="colorBySpeed()">Color by Speed</button>
 </div>
+</div>
 
-<!-- Leaflet JS + CSS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+
+
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 {% endblock %}
 
 {% block script_extra %}
@@ -212,7 +192,19 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 let macAddress = '08:3A:8D:DE:E5:10';  // Default MAC address for testing, replace with actual MAC when available
 
-let previousCoords = null;  // Initialize the previous coordinates globally
+let previousCoords = null;
+let previousTimestamp = null;
+
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const toRad = deg => deg * Math.PI / 180;
+  const R = 6371000; // Earth radius in meters
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 function fetchLiveRoute(mac) {
   if (!mac || mac.trim() === '') {
@@ -227,22 +219,57 @@ function fetchLiveRoute(mac) {
     .then(data => {
       const lat = data.latitude;
       const lng = data.longitude;
+      const now = Date.now();
 
       console.log(`Live GPS position from server: lat=${lat}, lng=${lng}`);
 
+      // Update live UI panel (if present)
+      const latEl = document.getElementById("lat-display");
+      const lngEl = document.getElementById("lng-display");
+      const speedEl = document.getElementById("speed-display");
+      const probeEl = document.getElementById("gps-probe");
+
+      if (latEl) latEl.textContent = lat.toFixed(6);
+      if (lngEl) lngEl.textContent = lng.toFixed(6);
+
+      // Blink GPS probe
+      if (probeEl) {
+        probeEl.classList.remove("gps-on");
+        void probeEl.offsetWidth; // trigger reflow
+        probeEl.classList.add("gps-on");
+      }
+
+      // Skip if coordinates haven't changed
       if (previousCoords && previousCoords.lat === lat && previousCoords.lng === lng) {
         console.log("Received same coordinates. Skipping.");
         return;
       }
 
+      // Speed calculation
+      if (previousCoords && previousTimestamp) {
+        const distance = haversineDistance(previousCoords.lat, previousCoords.lng, lat, lng); // meters
+        const timeDelta = (now - previousTimestamp) / 1000; // seconds
+        const speedKph = (distance / timeDelta) * 3.6;
+        if (speedEl) speedEl.textContent = speedKph.toFixed(2);
+        console.log(`Speed: ${speedKph.toFixed(2)} km/h`);
+      }
+
       previousCoords = { lat, lng };
+      previousTimestamp = now;
+
       liveCoords.push([lat, lng]);
       drawRoute(liveCoords, 'blue');
     })
     .catch(err => {
       console.error("Error fetching GPS coordinates:", err);
+      const probeEl = document.getElementById("gps-probe");
+      if (probeEl) {
+        probeEl.classList.remove("gps-on");
+        probeEl.classList.add("gps-off");
+      }
     });
 }
+
 
 function toggleAutoUpdate() {
   autoUpdate = !autoUpdate;
