@@ -2,30 +2,163 @@
 {% block title %}Live Map{% endblock %}
 
 {% block content %}
+
+<style>
+  /* Top control panel style */
+  .top-panel {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    background-color: #333;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    flex-wrap: wrap;  /* Allow wrapping if there are too many elements */
+  }
+
+  .top-panel button, .top-panel select {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 15px;
+    margin: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+  }
+
+  .top-panel button:hover, .top-panel select:hover {
+    background-color: #45a049;
+  }
+
+  .top-panel select {
+    padding: 8px;
+    font-size: 14px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+  }
+
+  /* Style for the Auto-Update Button */
+  #toggleAuto {
+    background-color: #4CAF50; /* Green background for Auto-Update */
+    color: white; /* White text */
+    padding: 10px 20px; /* Padding for button */
+    margin: 5px 10px; /* Margin between buttons */
+    border: none; /* No border */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    font-size: 14px; /* Font size */
+    transition: background-color 0.3s ease; /* Smooth transition */
+  }
+
+  /* Hover effect for Auto-Update Button */
+  #toggleAuto:hover {
+    background-color: #45a049; /* Darker green on hover */
+  }
+
+  /* Style for the Manual Refresh Button */
+  #manualRefresh {
+    background-color: #2196F3; /* Blue background for Refresh button */
+    color: white; /* White text */
+    padding: 10px 20px; /* Padding for button */
+    margin: 5px 10px; /* Margin between buttons */
+    border: none; /* No border */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+    font-size: 14px; /* Font size */
+    transition: background-color 0.3s ease; /* Smooth transition */
+  }
+
+  /* Hover effect for Manual Refresh Button */
+  #manualRefresh:hover {
+    background-color: #1976D2; /* Darker blue on hover */
+  }
+
+  /* Hide the refresh button by default */
+  #manualRefresh[style="display:none;"] {
+    display: none; /* Keeps it hidden when not needed */
+  }
+
+  /* Custom button for toggling Auto-Update and Logging */
+  #loggingToggle {
+    background-color: #4CAF50;
+  }
+
+  #loggingToggle:hover {
+    background-color: #e53935;
+  }
+
+  #loggingToggle.off {
+    background-color: #f44336;
+  }
+
+  #loggingToggle.off:hover {
+    background-color: #45a049;
+  }
+
+  /* Map container style */
+  #map {
+    height: 80vh;
+    width: 100%;
+  }
+
+  /* Optional analysis widget style */
+  #analysis-widget {
+    background-color: #333;
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    width: 300px;
+    display: block;
+    margin-top: 105px;
+  }
+
+  #analysis-widget h4 {
+    text-align: center;
+    margin-bottom: 10px;
+    font-size: 20px;
+    color: #ffcc00;
+  }
+
+  #analysis-widget button {
+    background-color: #2196F3;
+  }
+
+  #analysis-widget button:hover {
+    background-color: #1976D2;
+  }
+</style>
+
+
 <h2>Live GPS Route</h2>
 
-<div style="margin-bottom: 1rem;">
+<!-- Top Control Panel (horizontal layout) -->
+<div id="top-panel" class="top-panel">
   <button onclick="saveRoute()">💾 Save Route</button>
   <select id="savedRoutes" onchange="loadRoute()">
     <option value="">📁 Load Saved Route</option>
   </select>
   <button onclick="deleteRoute()">🗑️ Delete Route</button>
 
-  <select id="playSelect" style="margin-left: 0.5rem;">
+  <select id="playSelect">
     <option value="live">▶️ Play Live Route</option>
     <option value="saved">▶️ Play Saved Route</option>
   </select>
   <button onclick="playRoute()">▶️ Play</button>
 
   <button onclick="clearRoute()">🧹 Clear Map</button>
-</div>
 
-<div style="margin-bottom: 1rem;">
   <button id="toggleAuto" onclick="toggleAutoUpdate()">Auto-Update: ON</button>
   <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
-  <label for="loggingToggle">Enable Logging:</label>
-  <input type="checkbox" id="loggingToggle" checked> <!-- Default to checked (logging enabled) -->
+  <button id="loggingToggle" onclick="toggleLogging()">Enable Logging: ON</button>
 </div>
+
+<!-- Map container -->
+<div id="map" style="height: 80vh;"></div>
 
 <!-- MAC Label -->
 <div id="mac-label" style="
@@ -44,11 +177,8 @@
   MAC: <span id="mac-value">N/A</span>
 </div>
 
-<!-- Map container -->
-<div id="map" style="height: 80vh;"></div>
-
-<!-- Analysis tools widget (separate from map) -->
-<div id="analysis-widget">
+<!-- Analysis tools widget (optional, can be included) -->
+<div id="analysis-widget" class="control-panel">
   <h4>🧮 Analysis</h4>
   <button onclick="showElevation()">Elevation Profile</button>
   <button onclick="showSpeedGraph()">Speed Graph</button>
@@ -87,56 +217,30 @@ let previousCoords = null;  // Initialize the previous coordinates globally
 function fetchLiveRoute(mac) {
   if (!mac || mac.trim() === '') {
     console.log("Error: MAC address is missing!");
-    return;  // Exit if MAC address is missing or empty
+    return;
   }
 
   console.log("Function: fetchLiveRoute() called");
 
-  let url = `/api/coords?mac=${mac}`;
-
-  console.log(`Requesting URL: ${url}`);
-
-  fetch(url)
-    .then(res => res.json())
+  fetch(`/gps/live?mac=${encodeURIComponent(mac)}`)
+    .then(response => response.json())
     .then(data => {
-      console.log("Response data:", data);
-      if (!Array.isArray(data) || data.length === 0) {
-        console.log("No coordinates found for this MAC address.");
-        return;  // Exit if no data or invalid data is returned
-      }
+      const lat = data.latitude;
+      const lng = data.longitude;
 
-      // Check if the coordinates have changed
-      const latestCoords = data[data.length - 1];
-      const { lat, lng, timestamp } = latestCoords;
-      console.log(`Latest coordinates: lat=${lat}, lng=${lng}, timestamp=${timestamp}`);
+      console.log(`Live GPS position from server: lat=${lat}, lng=${lng}`);
 
       if (previousCoords && previousCoords.lat === lat && previousCoords.lng === lng) {
-        console.log("Received the same coordinates as the previous one. Skipping update.");
-        return;  // Exit if the coordinates haven't changed
+        console.log("Received same coordinates. Skipping.");
+        return;
       }
 
-      // Update the previous coordinates to the latest one
       previousCoords = { lat, lng };
-
-      // Draw route if coordinates are found
-      liveCoords = data.map(p => [p.lat, p.lng]);
-
-      // Optionally, display timestamps or other data for debugging or rendering purposes
-      data.forEach(coord => {
-        console.log(`Coordinate at ${coord.timestamp}: lat=${coord.lat}, lng=${coord.lng}`);
-      });
-
+      liveCoords.push([lat, lng]);
       drawRoute(liveCoords, 'blue');
-
-      // Update the MAC label
-      document.getElementById('mac-value').textContent = mac;
-      document.getElementById('mac-label').style.display = 'block';
-
-      // Send latest coordinates data
-      sendGpsData(lat, lng, mac);
     })
     .catch(err => {
-      console.log("Error fetching data:", err);
+      console.error("Error fetching GPS coordinates:", err);
     });
 }
 
@@ -149,7 +253,7 @@ function toggleAutoUpdate() {
     toggleBtn.textContent = "Auto-Update: ON";
     refreshBtn.style.display = "none";
     if (macAddress) {  // Ensure valid MAC address is present before starting the interval
-      intervalId = setInterval(() => fetchLiveRoute(macAddress), 5000);
+      intervalId = setInterval(() => fetchLiveRoute(macAddress), 2000);
     } else {
       console.log("Error: No MAC address available for auto-update");
     }
@@ -384,7 +488,6 @@ function showSpeedGraph() {
   });
 }
 
-<!--intervalId = setInterval(() => fetchLiveRoute('08:3A:3A:8D:DE:E5:10'), 5000);  // Example mac address-->
 fetchSavedRoutes();
 </script>
 {% endblock %}

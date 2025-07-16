@@ -1,4 +1,5 @@
 import logging
+import threading
 import time
 
 from flask import Flask, request, jsonify, render_template
@@ -7,8 +8,15 @@ from math import radians, cos, sin, asin, sqrt
 import os
 import json
 
+import paho.mqtt.client as mqtt
+
 from exports import export_bp
 from imports import import_bp
+
+from threading import Lock
+
+latest_coords = {}
+coords_lock = Lock()
 
 ROUTES_DIR = 'routes'
 os.makedirs(ROUTES_DIR, exist_ok=True)
@@ -28,8 +36,40 @@ last_point = {"lat": None, "lng": None, "ts": None}
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+MQTT_BROKER = "broker.hivemq.com"
+MQTT_PORT = 1883
+MQTT_TOPIC = "orriona-gps"
 
-from datetime import datetime
+
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        logger.info("Connected to HiveMQ broker")
+        client.subscribe(MQTT_TOPIC)
+    else:
+        logger.error(f"Failed to connect to MQTT broker, return code {rc}")
+
+
+def on_message(client, userdata, msg):
+    try:
+        payload = json.loads(msg.payload.decode())
+        lat = payload.get("latitude")
+        lng = payload.get("longitude")
+        mac = payload.get("mac")
+
+        if mac and lat and lng:
+            logger.info(f"MQTT received -> MAC: {mac}, Lat: {lat}, Lng: {lng}")
+            with coords_lock:
+                latest_coords[mac] = {
+                    'lat': lat,
+                    'lng': lng,
+                    'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+                }
+            write_to_log(mac, lat, lng)
+        else:
+            logger.warning(f"Incomplete MQTT message: {payload}")
+    except Exception as e:
+        logger.error(f"Error processing MQTT message: {e}")
+
 
 def write_to_log(mac, lat, lng):
     today = datetime.utcnow().strftime('%Y-%m-%d')
@@ -58,10 +98,7 @@ def write_to_log(mac, lat, lng):
         f.write(f"{timestamp},{lat},{lng},{mac}\n")
     logger.debug(f"Data written to: {log_file}")
 
-import math
 import requests
-from datetime import datetime
-
 
 def get_utc_time_with_retry(retries=3, delay=5):
     url = 'https://api.exchangerate-api.com/v4/latest/UTC'  # Example API that can return UTC time, can be replaced with others
@@ -151,8 +188,55 @@ def show_logs():
     # Render the logs template with filtered data
     return render_template('logs.html', logs=rows, date=date_filter, files=log_files)
 
-
 @app.route('/gps', methods=['POST'])
+def get_latest_mqtt_coords():
+    logger.debug("Function: get_latest_mqtt_coords() called")
+    mac = request.args.get("mac")
+    logger.debug(f"Received request for latest GPS for MAC: {mac}")
+
+    if not mac:
+        return jsonify({"error": "MAC address is required"}), 400
+
+    with coords_lock:
+        data = latest_coords.get(mac)
+
+    if not data:
+        return jsonify({"error": "No data available for this MAC"}), 404
+
+    return jsonify({
+        "mac": mac,
+        "latitude": data['lat'],
+        "longitude": data['lng'],
+        "timestamp": data['timestamp'],
+        "source": "MQTT"
+    }), 200
+
+
+@app.route('/gps/live', methods=['GET'])
+def get_latest_mqtt_coords_live():
+    logger.debug("Function: get_latest_mqtt_coords() called")
+    mac = request.args.get("mac")
+    logger.debug(f"Received request for latest GPS for MAC: {mac}")
+
+    if not mac:
+        return jsonify({"error": "MAC address is required"}), 400
+
+    with coords_lock:
+        data = latest_coords.get(mac)
+
+    if not data:
+        return jsonify({"error": "No data available for this MAC"}), 404
+
+    return jsonify({
+        "mac": mac,
+        "latitude": data['lat'],
+        "longitude": data['lng'],
+        "timestamp": data['timestamp'],
+        "source": "MQTT"
+    }), 200
+
+
+@app.route('/gps/legacy', methods=['POST'])
 def receive_gps():
     logger.debug("Function: receive_gps() called")
 
@@ -213,13 +297,10 @@ def receive_gps():
     return jsonify({"status": "success", "message": "Data received and processed"}), 200
 
 
-from datetime import datetime
-
-
-def filter_coords(new_coord, last_coord, threshold_lat=0.00000009, threshold_lng=0.00000009):
+def filter_coords(new_coord, last_coord, threshold_lat=0.000000009, threshold_lng=0.000000009):
     """
     Filters out coordinates that haven't changed significantly (based on a threshold in degrees).
-    The threshold is based on a 1 cm change in latitude/longitude.
+    The threshold is based on a 0.1 cm change in latitude/longitude.
 
     :param new_coord: The new coordinates to compare
     :param last_coord: The previous coordinates
@@ -301,12 +382,15 @@ def get_coords():
                                     new_coord = {'lat': lat, 'lng': lng, 'timestamp': timestamp}
 
                                     # Only append the new coordinate if it differs significantly from the last one
-                                    if filter_coords(new_coord, last_coord, threshold_lat=0.00000009, threshold_lng=0.00000009):
-                                        coords.append(new_coord)
-                                        logger.debug(f"Coordinates added: lat={lat}, lng={lng}, timestamp={timestamp}")
-                                        last_coord = new_coord
-                                    else:
-                                        logger.debug("Coordinates haven't changed significantly. Skipping update.")
+                                    # if filter_coords(new_coord, last_coord, threshold_lat=0.00000009, threshold_lng=0.00000009):
+                                    #     coords.append(new_coord)
+                                    #     logger.debug(f"Coordinates added: lat={lat}, lng={lng}, timestamp={timestamp}")
+                                    #     last_coord = new_coord
+                                    # else:
+                                    #     logger.debug("Coordinates haven't changed significantly. Skipping update.")
+                                    coords.append(new_coord)
+                                    logger.debug(f"Coordinates added: lat={lat}, lng={lng}, timestamp={timestamp}")
+
                                 except ValueError as e:
                                     logger.error(f"Invalid coordinates in line: {line}. Error: {e}")
                                     continue
@@ -408,6 +492,16 @@ def delete_route(name):
         return "Route deleted", 200
     return "Route not found", 404
 
+def start_mqtt():
+    client = mqtt.Client()
+    client.on_connect = on_connect
+    client.on_message = on_message
+    client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    client.loop_forever()
+
+mqtt_thread = threading.Thread(target=start_mqtt)
+mqtt_thread.daemon = True
+mqtt_thread.start()
 
 if __name__ == '__main__':
     logger.debug("Function: main()")
