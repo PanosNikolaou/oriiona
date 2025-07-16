@@ -48,15 +48,17 @@
   }
 
   #analysis-widget {
+    position: absolute;
+    top: 20px;           /* adjust to appear below the GPS panel */
+    right: 20px;          /* distance from right edge */
     background-color: #333;
     color: white;
-    padding: 10px;
-    margin-right: 10px;
     border-radius: 8px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     width: 300px;
-    display: block;
-    margin-top: 105px;
+    padding: 10px;
+    z-index: 998;
+    display: none;        /* initially hidden */
   }
 
   #analysis-widget h4 {
@@ -78,7 +80,7 @@
     position: relative;
     top: 10px;         /* distance from top of page, adjust as needed */
     left: 50px;        /* distance from left edge */
-    width: 150px;
+    width: 200px;
     background: rgba(255, 255, 255, 0.9);
     padding: 10px 14px;
     border: 1px solid #ccc;
@@ -141,6 +143,7 @@
   <button id="toggleAuto" onclick="toggleAutoUpdate()">Auto-Update: ON</button>
   <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
   <button id="loggingToggle" onclick="toggleLogging()">Enable Logging: ON</button>
+  <button onclick="toggleAnalysis()">📊 Toggle Analysis</button>
 
 </div>
 
@@ -162,13 +165,26 @@
   <button onclick="detectIdleStops()">Detect Idle</button>
   <button onclick="colorBySpeed()">Color by Speed</button>
 </div>
+
+  <div style="position:absolute; top:10px; right:20px; z-index:1000; background:white; padding:8px; border-radius:6px;">
+  <strong>Speed Legend (km/h)</strong><br>
+  <span style="color:blue;">●</span> 0–10<br>
+  <span style="color:limegreen;">●</span> 10–30<br>
+  <span style="color:orange;">●</span> 30–60<br>
+  <span style="color:red;">●</span> 60+
+</div>
+
 </div>
 
 
+<!-- Leaflet core JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Then the Leaflet.heat plugin -->
+<script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 {% endblock %}
@@ -185,6 +201,8 @@ let endMarker = null;
 let autoUpdate = true;
 let intervalId = null;
 let heatLayer = null;
+
+let speedLayerGroup = L.layerGroup().addTo(map);
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
@@ -206,6 +224,84 @@ function haversineDistance(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function colorBySpeed() {
+  if (liveCoords.length < 2) return alert("Not enough data");
+
+  const segments = [];
+
+  for (let i = 1; i < liveCoords.length; i++) {
+    const prev = liveCoords[i - 1];
+    const curr = liveCoords[i];
+
+    const distance = haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng); // in meters
+    const timeDelta = (curr.timestamp - prev.timestamp) / 1000; // in seconds
+
+    const speed = (distance / timeDelta) * 3.6; // in km/h
+    let color = 'gray';
+
+    if (speed < 5) color = 'blue';
+    else if (speed < 15) color = 'green';
+    else if (speed < 30) color = 'orange';
+    else color = 'red';
+
+    segments.push({
+      coords: [[prev.lat, prev.lng], [curr.lat, curr.lng]],
+      color
+    });
+  }
+
+  // Clear existing route
+  if (routeLine) {
+    map.removeLayer(routeLine);
+    routeLine = null;
+  }
+  if (startMarker) map.removeLayer(startMarker);
+  if (endMarker) map.removeLayer(endMarker);
+
+  // Draw colored segments
+  for (const segment of segments) {
+    L.polyline(segment.coords, { color: segment.color }).addTo(map);
+  }
+
+  // Optionally re-add start and end markers
+  const start = liveCoords[0];
+  const end = liveCoords[liveCoords.length - 1];
+  startMarker = L.marker([start.lat, start.lng]).addTo(map).bindPopup("🚩 Start");
+  endMarker = L.marker([end.lat, end.lng]).addTo(map).bindPopup("🏁 End");
+}
+
+function getSpeedColor(speed) {
+  if (speed < 10) return 'blue';
+  if (speed < 30) return 'limegreen';
+  if (speed < 60) return 'orange';
+  return 'red';
+}
+
+let heatVisible = false;
+
+function toggleHeatmap() {
+  if (!liveCoords.length) {
+    alert("No GPS data to show heatmap.");
+    return;
+  }
+
+  if (!heatVisible) {
+    const heatData = liveCoords.map(p => [p.lat || p[0], p.lng || p[1], 1]);  // [lat, lng, intensity]
+    heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 17 });
+    heatLayer.addTo(map);
+    heatVisible = true;
+    console.log("Heatmap enabled");
+  } else {
+    if (heatLayer) {
+      map.removeLayer(heatLayer);
+      heatLayer = null;
+    }
+    heatVisible = false;
+    console.log("Heatmap disabled");
+  }
+}
+
+
 function fetchLiveRoute(mac) {
   if (!mac || mac.trim() === '') {
     console.log("Error: MAC address is missing!");
@@ -223,29 +319,26 @@ function fetchLiveRoute(mac) {
 
       console.log(`Live GPS position from server: lat=${lat}, lng=${lng}`);
 
-      // Update live UI panel (if present)
-      const latEl = document.getElementById("lat-display");
-      const lngEl = document.getElementById("lng-display");
-      const speedEl = document.getElementById("speed-display");
-      const probeEl = document.getElementById("gps-probe");
-
-      if (latEl) latEl.textContent = lat.toFixed(6);
-      if (lngEl) lngEl.textContent = lng.toFixed(6);
+      // Update live UI panel
+      document.getElementById("lat-display").textContent = lat.toFixed(6);
+      document.getElementById("lng-display").textContent = lng.toFixed(6);
 
       // Blink GPS probe
+      const probeEl = document.getElementById("gps-probe");
       if (probeEl) {
         probeEl.classList.remove("gps-on");
-        void probeEl.offsetWidth; // trigger reflow
+        void probeEl.offsetWidth; // reflow
         probeEl.classList.add("gps-on");
       }
 
-      // Skip if coordinates haven't changed
+      // Skip duplicate coordinates
       if (previousCoords && previousCoords.lat === lat && previousCoords.lng === lng) {
         console.log("Received same coordinates. Skipping.");
         return;
       }
 
-      // Speed calculation
+      // Calculate speed
+      const speedEl = document.getElementById("speed-display");
       if (previousCoords && previousTimestamp) {
         const distance = haversineDistance(previousCoords.lat, previousCoords.lng, lat, lng); // meters
         const timeDelta = (now - previousTimestamp) / 1000; // seconds
@@ -254,11 +347,20 @@ function fetchLiveRoute(mac) {
         console.log(`Speed: ${speedKph.toFixed(2)} km/h`);
       }
 
+      // Save new previous values
       previousCoords = { lat, lng };
       previousTimestamp = now;
 
-      liveCoords.push([lat, lng]);
-      drawRoute(liveCoords, 'blue');
+      // Only push once with full structure
+      liveCoords.push({
+        0: lat,  // needed for Leaflet
+        1: lng,
+        lat: lat,
+        lng: lng,
+        timestamp: now
+      });
+
+      drawRoute(liveCoords.map(c => [c.lat, c.lng]), 'blue');
     })
     .catch(err => {
       console.error("Error fetching GPS coordinates:", err);
@@ -269,7 +371,6 @@ function fetchLiveRoute(mac) {
       }
     });
 }
-
 
 function toggleAutoUpdate() {
   autoUpdate = !autoUpdate;
@@ -441,6 +542,15 @@ function clearRoute() {
   if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
 }
 
+function toggleAnalysis() {
+  const widget = document.getElementById('analysis-widget');
+  if (widget.style.display === 'none') {
+    widget.style.display = 'block';
+  } else {
+    widget.style.display = 'none';
+  }
+}
+
 // Fetch saved routes from the server
 function fetchSavedRoutes() {
   console.log("Function: fetchSavedRoutes() called");  // Debugging entry point
@@ -493,24 +603,92 @@ function sendGpsData(lat, lng, mac) {
   });
 }
 
+function detectIdleStops() {
+  console.log("Function: detectIdleStops() called");
+
+  if (liveCoords.length < 2) {
+    alert("Not enough data to detect idle stops.");
+    return;
+  }
+
+  const idleStops = [];
+
+  for (let i = 1; i < liveCoords.length; i++) {
+    const prev = liveCoords[i - 1];
+    const curr = liveCoords[i];
+
+    const distance = haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+    const timeDelta = (curr.timestamp - prev.timestamp) / 1000;
+    const speed = (distance / timeDelta) * 3.6;
+
+    if (speed < 2.0) {  // Consider < 2 km/h as idle
+      idleStops.push(curr);
+    }
+  }
+
+  if (idleStops.length === 0) {
+    alert("No idle stops detected.");
+    return;
+  }
+
+  // Show markers for idle stops
+  idleStops.forEach(point => {
+    L.circleMarker([point.lat, point.lng], {
+      color: 'red',
+      radius: 6
+    }).addTo(map).bindPopup("🛑 Idle stop");
+  });
+
+  alert(`Detected ${idleStops.length} idle stops.`);
+}
+
 // Show speed graph
 function showSpeedGraph() {
-  console.log("Function: showSpeedGraph() called");  // Debugging entry point
-  if (!liveCoords.length) return alert("No data to analyze speed.");
+  console.log("Function: showSpeedGraph() called");
+  if (liveCoords.length < 2) return alert("Not enough data");
+
   const speeds = [];
+  const labels = [];
+
   for (let i = 1; i < liveCoords.length; i++) {
-    const [lat1, lng1] = liveCoords[i - 1];
-    const [lat2, lng2] = liveCoords[i];
-    const dist = map.distance([lat1, lng1], [lat2, lng2]);
-    speeds.push((dist / 5).toFixed(2)); // rough speed estimate assuming 5s interval
+    const prev = liveCoords[i - 1];
+    const curr = liveCoords[i];
+
+    const distance = haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng); // meters
+    const timeDelta = (curr.timestamp - prev.timestamp) / 1000; // seconds
+
+    const speed = (distance / timeDelta) * 3.6; // km/h
+    speeds.push(speed.toFixed(2));
+    labels.push(i); // just use point index as label
   }
+
   const ctx = document.createElement('canvas');
+  ctx.style.width = "600px";
+  ctx.style.height = "300px";
+  ctx.style.display = "block";
+  ctx.style.margin = "30px auto";
   document.body.appendChild(ctx);
+
   new Chart(ctx, {
     type: 'line',
     data: {
-      labels: speeds.map((_, i) => i + 1),
-      datasets: [{ label: 'Speed (m/s)', data: speeds, borderColor: 'red', fill: false }]
+      labels: labels,
+      datasets: [{
+        label: 'Speed (km/h)',
+        data: speeds,
+        borderColor: 'orange',
+        fill: false,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
     }
   });
 }
