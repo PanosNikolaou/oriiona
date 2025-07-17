@@ -215,6 +215,13 @@
   <option value="toner">🖤 Toner</option>
   <option value="opensea">⚓ OpenSeaMap</option>
 </select>
+<div id="opensea-options" style="display:none; margin-left: 20px;">
+  <label><input type="checkbox" onchange="toggleOpenSeaLayer('seamark')" checked> Seamarks</label>
+  <label><input type="checkbox" onchange="toggleOpenSeaLayer('depth')" checked> Depth Contours</label>
+  <label><input type="checkbox" onchange="toggleOpenSeaLayer('harbour')" checked> Harbours</label>
+  <label><input type="checkbox" onchange="toggleOpenSeaLayer('light')" checked> Lighthouses</label>
+  <label><input type="checkbox" onchange="toggleOpenSeaLayer('aerialway')"> Aerialways</label>
+</div>
 
 
 </div>
@@ -256,6 +263,19 @@
     <span style="color:red;">●</span> 60+
   </div>
 
+  <div id="weather-panel" style="
+  position:absolute;
+  bottom:20px;
+  left:20px;
+  background:rgba(0,0,0,0.7);
+  color:white;
+  padding:10px;
+  border-radius:6px;
+  font-size:14px;
+  z-index:999;">
+  🌊 Marine weather data will appear here
+</div>
+
 </div>
 
 
@@ -274,6 +294,17 @@
 {% block script_extra %}
 <script>
 let map = L.map('map').setView([37.5, 22.37], 16);
+map.whenReady(() => {
+  const center = map.getCenter();
+  fetchMarineWeather(center.lat, center.lng);
+});
+
+setInterval(() => {
+  const center = map.getCenter();
+  fetchMarineWeather(center.lat, center.lng);
+}, 30000); // every 30s
+
+
 let routeLine = null;
 let liveCoords = [];
 let animMarker = null;
@@ -285,6 +316,34 @@ let intervalId = null;
 let heatLayer = null;
 
 let speedLayerGroup = L.layerGroup().addTo(map);
+
+function fetchMarineWeather(lat, lon) {
+  const url = `/api/marine_weather?lat=${lat}&lon=${lon}`;
+
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
+      const w = data?.weather;
+      if (!w) {
+        document.getElementById('marine-weather').innerHTML =
+          "🌊 <b>Marine Weather</b><br><i>No data available.</i>";
+        return;
+      }
+
+      document.getElementById('marine-weather').innerHTML = `
+        🌊 <b>Marine Weather</b><br>
+        🌬 <b>Wind:</b> ${w.wind_speed_kn} kn ${w.wind_dir_txt} (${w.wind_dir}°)<br>
+        🌡 <b>Air Temp:</b> ${w.air_temperature} °C<br>
+        🌊 <b>Waves:</b> ${w.wave_height} m<br>
+        🧭 <b>Pressure:</b> ${w.air_pressure} hPa
+      `;
+    })
+    .catch(err => {
+      console.error("Failed to fetch marine weather:", err);
+      document.getElementById('marine-weather').innerHTML =
+        "🌊 <b>Marine Weather</b><br><i>Error loading data.</i>";
+    });
+}
 
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
@@ -312,6 +371,10 @@ const openSeaMap = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}
   transparent: true
 });
 
+const weatherOverlay = L.tileLayer('https://tiles.openseamap.org/weather/{z}/{x}/{y}.png', {
+  attribution: 'Weather © OpenSeaMap contributors'
+});
+
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
@@ -324,18 +387,70 @@ const tileLayers = {
   opensea: L.layerGroup([osm, openSeaMap])  // ⬅️ Add OpenSeaMap as a layer group
 };
 
+const openSeaLayers = {
+  seamark: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+  depth: L.tileLayer('https://tiles.openseamap.org/seabath/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+  harbour: L.tileLayer('https://tiles.openseamap.org/harbour/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+  light: L.tileLayer('https://tiles.openseamap.org/lighthouses/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+  aerialway: L.tileLayer('https://tiles.openseamap.org/aerialway/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+};
+
+function fetchMarineWeather(lat, lon) {
+  const url = `/api/marine_weather?lat=${lat}&lon=${lon}`;
+  fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      console.log("Marine weather data:", data);
+      // process and display data here
+    })
+    .catch(error => {
+      console.error("Failed to fetch marine weather:", error);
+    });
+}
 
 function changeMapStyle(style) {
-  Object.values(tileLayers).forEach(layer => {
-    if (map.hasLayer(layer)) map.removeLayer(layer);
-  });
+  // Remove all tile layers
+  Object.values(tileLayers).forEach(layer => map.removeLayer(layer));
+  Object.values(openSeaLayers).forEach(layer => map.removeLayer(layer));
 
-  const selectedLayer = tileLayers[style];
+  // Add the selected layer
+  if (style === 'opensea') {
+    tileLayers['osm'].addTo(map); // Base OSM
+    document.getElementById('opensea-options').style.display = 'inline-block';
 
-  if (selectedLayer instanceof L.LayerGroup) {
-    selectedLayer.addTo(map);  // Group (like OSM + OpenSeaMap)
+    // Add default layers
+    Object.keys(openSeaLayers).forEach(key => {
+      const checkbox = document.querySelector(`#opensea-options input[value=${key}]`);
+      if (!checkbox || checkbox.checked) openSeaLayers[key].addTo(map);
+    });
   } else {
-    selectedLayer.addTo(map);  // Single layer
+    tileLayers[style].addTo(map);
+    document.getElementById('opensea-options').style.display = 'none';
+  }
+}
+
+function toggleOpenSeaLayer(layerKey) {
+  const layer = openSeaLayers[layerKey];
+  const checkbox = event.target;
+  if (checkbox.checked) {
+    layer.addTo(map);
+  } else {
+    map.removeLayer(layer);
   }
 }
 
@@ -347,15 +462,23 @@ let previousCoords = null;
 let previousTimestamp = null;
 
 function haversineDistance(lat1, lon1, lat2, lon2) {
-  const toRad = deg => deg * Math.PI / 180;
-  const R = 6371000; // Earth radius in meters
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const R = 6371e3; // metres
+  const toRad = x => x * Math.PI / 180;
+
+  const φ1 = toRad(lat1);
+  const φ2 = toRad(lat2);
+  const Δφ = toRad(lat2 - lat1);
+  const Δλ = toRad(lon2 - lon1);
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  const d = R * c;
+  return d;
 }
+
 
 function colorBySpeed() {
   if (liveCoords.length < 2) return alert("Not enough data");
@@ -447,31 +570,48 @@ function fetchLiveRoute(mac) {
   const macLabelEl = document.getElementById("mac-value");
   if (macLabelEl) {
     macLabelEl.textContent = mac;
-    document.getElementById("mac-label").style.display = "block";  // Make the label visible
+    document.getElementById("mac-label").style.display = "block";  // Show the label
   }
 
-  fetch(`/gps/live?mac=${encodeURIComponent(mac)}`)
-    .then(response => response.json())
+  fetch(`/gps?mac=${encodeURIComponent(mac)}`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
+    })
     .then(data => {
+      if (data.error) {
+        console.warn("Server returned an error:", data.error);
+        return;
+      }
+
       const lat = data.latitude;
       const lng = data.longitude;
       const now = Date.now();
 
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
+        console.warn("Invalid GPS data received:", data);
+        return;
+      }
+
       console.log(`Live GPS position from server: lat=${lat}, lng=${lng}`);
 
       // Update live UI panel
-      document.getElementById("lat-display").textContent = lat.toFixed(6);
-      document.getElementById("lng-display").textContent = lng.toFixed(6);
+      const latEl = document.getElementById("lat-display");
+      const lngEl = document.getElementById("lng-display");
+      if (latEl) latEl.textContent = lat.toFixed(6);
+      if (lngEl) lngEl.textContent = lng.toFixed(6);
 
       // Blink GPS probe
       const probeEl = document.getElementById("gps-probe");
       if (probeEl) {
         probeEl.classList.remove("gps-on");
-        void probeEl.offsetWidth; // reflow
+        void probeEl.offsetWidth; // trigger reflow
         probeEl.classList.add("gps-on");
       }
 
-      // Skip duplicate coordinates
+      // Avoid duplicates
       if (previousCoords && previousCoords.lat === lat && previousCoords.lng === lng) {
         console.log("Received same coordinates. Skipping.");
         return;
@@ -487,19 +627,20 @@ function fetchLiveRoute(mac) {
         console.log(`Speed: ${speedKph.toFixed(2)} km/h`);
       }
 
-      // Save new previous values
+      // Save for next update
       previousCoords = { lat, lng };
       previousTimestamp = now;
 
-      // Only push once with full structure
+      // Push to live track array
       liveCoords.push({
-        0: lat,  // needed for Leaflet
+        0: lat,  // Leaflet polyline format
         1: lng,
         lat: lat,
         lng: lng,
         timestamp: now
       });
 
+      // Draw the updated route on the map
       drawRoute(liveCoords.map(c => [c.lat, c.lng]), 'blue');
     })
     .catch(err => {
@@ -509,6 +650,9 @@ function fetchLiveRoute(mac) {
         probeEl.classList.remove("gps-on");
         probeEl.classList.add("gps-off");
       }
+
+      // Optional: toast or alert
+      // alert("🚨 Unable to fetch GPS location.");
     });
 }
 

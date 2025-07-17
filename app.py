@@ -475,6 +475,39 @@ def start_mqtt():
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
     client.loop_forever()
 
+import requests
+from flask import jsonify, request
+
+import requests
+from flask import Blueprint, request, jsonify
+
+proxy_bp = Blueprint('proxy', __name__)
+
+@proxy_bp.route('/api/marine_weather')
+def marine_weather_proxy():
+    lat = request.args.get('lat')
+    lon = request.args.get('lon')
+    if not lat or not lon:
+        return jsonify({"error": "Missing lat or lon"}), 400
+
+    try:
+        url = f'https://map.openseamap.org/php/weather.php?lat={lat}&lon={lon}'
+        response = requests.get(url, timeout=5)
+
+        if response.status_code != 200:
+            return jsonify({"error": "Upstream service failed", "status": response.status_code}), 502
+
+        try:
+            return jsonify(response.json())
+        except ValueError:
+            # Server returned non-JSON body (HTML or blank)
+            return jsonify({"error": "Invalid JSON from upstream"}), 502
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 mqtt_thread = threading.Thread(target=start_mqtt)
 mqtt_thread.daemon = True
 mqtt_thread.start()
