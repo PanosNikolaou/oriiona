@@ -106,6 +106,16 @@
     color: gray;
   }
 
+  #mapStyle {
+    background-color: #222;
+    color: white;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+
+
   @keyframes blink {
     50% { color: transparent; }
   }
@@ -198,6 +208,12 @@
   <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
   <button id="loggingToggle" onclick="toggleLogging()">Enable Logging: ON</button>
   <button onclick="toggleAnalysis()">📊 Toggle Analysis</button>
+<select id="mapStyle" onchange="changeMapStyle(this.value)">
+  <option value="osm">🗺️ OSM</option>
+  <option value="satellite">🛰️ Satellite</option>
+  <option value="dark">🌙 Dark</option>
+  <option value="toner">🖤 Toner</option>
+</select>
 
 
 </div>
@@ -269,9 +285,46 @@ let heatLayer = null;
 
 let speedLayerGroup = L.layerGroup().addTo(map);
 
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+});
+
+
+const satellite = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Earthstar Geographics'
+  }
+);
+
+const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; CartoDB',
+  subdomains: 'abcd'
+});
+
+const toner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+  attribution: 'Map tiles by Stamen Design'
+});
+
+
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
+
+const tileLayers = {
+  osm: osm,
+  satellite: satellite,
+  dark: dark,
+  toner: toner,
+};
+
+function changeMapStyle(style) {
+  Object.values(tileLayers).forEach(layer => {
+    if (map.hasLayer(layer)) map.removeLayer(layer);
+  });
+  tileLayers[style].addTo(map);
+}
+
 
 let macAddress = '08:3A:8D:DE:E5:10';  // Default MAC address for testing, replace with actual MAC when available
 
