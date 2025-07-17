@@ -213,6 +213,7 @@
   <option value="satellite">🛰️ Satellite</option>
   <option value="dark">🌙 Dark</option>
   <option value="toner">🖤 Toner</option>
+  <option value="opensea">⚓ OpenSeaMap</option>
 </select>
 
 
@@ -306,6 +307,10 @@ const toner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{
   attribution: 'Map tiles by Stamen Design'
 });
 
+const openSeaMap = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+  attribution: 'Map data © OpenSeaMap contributors',
+  transparent: true
+});
 
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
@@ -316,14 +321,24 @@ const tileLayers = {
   satellite: satellite,
   dark: dark,
   toner: toner,
+  opensea: L.layerGroup([osm, openSeaMap])  // ⬅️ Add OpenSeaMap as a layer group
 };
+
 
 function changeMapStyle(style) {
   Object.values(tileLayers).forEach(layer => {
     if (map.hasLayer(layer)) map.removeLayer(layer);
   });
-  tileLayers[style].addTo(map);
+
+  const selectedLayer = tileLayers[style];
+
+  if (selectedLayer instanceof L.LayerGroup) {
+    selectedLayer.addTo(map);  // Group (like OSM + OpenSeaMap)
+  } else {
+    selectedLayer.addTo(map);  // Single layer
+  }
 }
+
 
 
 let macAddress = '08:3A:8D:DE:E5:10';  // Default MAC address for testing, replace with actual MAC when available
