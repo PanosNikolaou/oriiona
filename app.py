@@ -322,96 +322,72 @@ from datetime import datetime
 @app.route('/api/coords')
 def get_coords():
     logger.debug("Function: get_coords()")
+
+    # Extract MAC and optional date from query parameters
     mac = request.args.get('mac')
+    date_filter = request.args.get('date', datetime.utcnow().strftime('%Y-%m-%d'))
 
-    # Log the full request arguments to debug if 'mac' is being passed correctly
     logger.debug(f"Request arguments: {request.args}")
+    logger.debug(f"Received MAC: {mac}, Date Filter: {date_filter}")
 
-    # Check if `mac` is None or an empty string
     if not mac:
         logger.error("Error: No MAC address provided")
         return jsonify({"error": "MAC address is required"}), 400
 
-    logger.debug(f"Received MAC: {mac}")  # Ensure `mac` is being set correctly here
-
-    today = datetime.utcnow().strftime('%Y-%m-%d')
     log_dir = './logs'
     os.makedirs(log_dir, exist_ok=True)
 
     try:
-        # Adjust file pattern to include MAC and date
-        file_prefix = f'gps_log_{mac.replace(":", "-").upper()}_{today}_'
+        # Create the log file prefix using the provided date (or today's date by default)
+        file_prefix = f'gps_log_{mac.replace(":", "-").upper()}_{date_filter}_'
 
-        # List files with the adjusted prefix (matching MAC and date)
-        session_files = sorted(
-            [f for f in os.listdir(log_dir) if f.startswith(file_prefix) and f.endswith('.txt')])
+        # Find all log files for this MAC and date
+        session_files = sorted([
+            f for f in os.listdir(log_dir)
+            if f.startswith(file_prefix) and f.endswith('.txt')
+        ])
 
-        logger.debug(f"Session files found for today ({today}): {session_files}")
+        logger.debug(f"Session files found for {mac} on {date_filter}: {session_files}")
 
         if not session_files:
-            logger.warning(f"No session files found for MAC {mac} on {today}.")
+            logger.warning(f"No session files found for MAC {mac} on {date_filter}.")
             return jsonify([])
 
         coords = []
-        last_coord = None  # Track the last coordinate added to the list
 
         for log_file in session_files:
             logger.debug(f"Processing file: {log_file}")
-
             try:
                 with open(os.path.join(log_dir, log_file), 'r') as f:
-                    logger.debug(f"Opened file {log_file} for reading.")
                     for line in f:
-                        line = line.strip()  # Clean up the line
-                        logger.debug(f"Reading line: {line}")
-
+                        line = line.strip()
                         parts = line.split(',')
-                        logger.debug(f"Line split into parts: {parts}")
 
-                        if len(parts) >= 4:
-                            if parts[3] == mac:
-                                try:
-                                    lat = float(parts[1])
-                                    lng = float(parts[2])
+                        if len(parts) >= 4 and parts[3] == mac:
+                            try:
+                                lat = float(parts[1])
+                                lng = float(parts[2])
+                                timestamp = parts[0]  # Use original timestamp from file
 
-                                    # **Generate the timestamp inside the loop** for each coordinate
-                                    # timestamp = get_utc_time_with_retry()
-                                    timestamp = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-                                    logger.debug(f"Generated timestamp: {timestamp}")
-
-                                    new_coord = {'lat': lat, 'lng': lng, 'timestamp': timestamp}
-
-                                    # Only append the new coordinate if it differs significantly from the last one
-                                    # if filter_coords(new_coord, last_coord, threshold_lat=0.00000009, threshold_lng=0.00000009):
-                                    #     coords.append(new_coord)
-                                    #     logger.debug(f"Coordinates added: lat={lat}, lng={lng}, timestamp={timestamp}")
-                                    #     last_coord = new_coord
-                                    # else:
-                                    #     logger.debug("Coordinates haven't changed significantly. Skipping update.")
-                                    coords.append(new_coord)
-                                    logger.debug(f"Coordinates added: lat={lat}, lng={lng}, timestamp={timestamp}")
-
-                                except ValueError as e:
-                                    logger.error(f"Invalid coordinates in line: {line}. Error: {e}")
-                                    continue
-                            else:
-                                logger.debug(f"Skipping line with mismatched MAC address: {parts[3]} != {mac}")
+                                coords.append({
+                                    'lat': lat,
+                                    'lng': lng,
+                                    'timestamp': timestamp
+                                })
+                                logger.debug(f"Coordinates added: lat={lat}, lng={lng}, timestamp={timestamp}")
+                            except ValueError as e:
+                                logger.error(f"Invalid coordinates in line: {line}. Error: {e}")
+                                continue
                         else:
-                            logger.warning(f"Skipping line with incorrect number of parts: {line}")
-
+                            logger.debug(f"Skipping line: {line}")
             except Exception as e:
-                logger.error(f"Error processing file {log_file} for MAC {mac}: {e}")
+                logger.error(f"Error reading file {log_file}: {e}")
 
         logger.debug(f"Total coordinates collected for MAC {mac}: {len(coords)}")
-        if coords:
-            logger.info(f"Coordinates found for MAC {mac}: {coords[:5]}...")
-        else:
-            logger.warning(f"No coordinates found for MAC {mac}.")
-
         return jsonify(coords)
 
     except Exception as e:
-        logger.error(f"Error occurred while processing request: {e}")
+        logger.error(f"Unexpected error in get_coords(): {e}")
         return jsonify({"error": "An error occurred while processing the request"}), 500
 
 

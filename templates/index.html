@@ -3,6 +3,8 @@
 
 {% block content %}
   <h2>Welcome to the GPS Tracker Dashboard</h2>
+  <img src="{{ url_for('static', filename='../static/apple-touch-icon.png') }}" alt="GPS Tracker Diagram" width="200px">
+
   <p>Select <strong>Live Map</strong> or <strong>Logs</strong> from the sidebar to begin.</p>
 
   <h3>About Orriona GPS Tracker</h3>
@@ -27,6 +29,5 @@
   </p>
 
   <h4>Diagram: How NEO-6M GPS Module Connects with Satellites</h4>
-  <img src="{{ url_for('static', filename='A_flat-style_digital_illustration_diagram_illustra.png') }}" alt="GPS Tracker Diagram" width="600px">
 
 {% endblock %}

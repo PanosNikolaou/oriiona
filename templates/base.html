@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>{% block title %}Oriiona{% endblock %}</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
@@ -180,6 +181,35 @@
       background-color: var(--hover);
     }
 
+
+#page-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(18, 18, 18, 0.85); /* dark transparent overlay */
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  border: 6px solid #444;
+  border-top: 6px solid #80ffd3;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+
     /* Responsive fallback */
     @media screen and (max-width: 600px) {
       #sidebar {
@@ -191,11 +221,15 @@
       #main {
         margin-left: 0;
       }
+
     }
   </style>
   {% block head_extra %}{% endblock %}
 </head>
 <body>
+<div id="page-loader">
+  <div class="spinner"></div>
+</div>
 
 <div id="sidebar">
   <h3>ORIIONA</h3>
@@ -307,6 +341,12 @@ window.onclick = function(event) {
     modal.style.display = "none";
   }
 };
+
+    window.addEventListener("load", function () {
+    const loader = document.getElementById("page-loader");
+    if (loader) loader.style.display = "none";
+  });
+
 </script>
 
 {% block script_extra %}{% endblock %}
