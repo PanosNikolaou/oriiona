@@ -56,20 +56,28 @@ def on_message(client, userdata, msg):
         lng = payload.get("longitude")
         mac = payload.get("mac")
 
-        if mac and lat and lng:
-            logger.info(f"MQTT received -> MAC: {mac}, Lat: {lat}, Lng: {lng}")
+        logger.debug(f"Raw MQTT payload: {payload}")
+
+        if not mac:
+            logger.warning("MQTT message missing MAC address")
+            return
+
+        normalized_mac = mac.strip().upper()
+        logger.debug(f"Normalized MAC: {normalized_mac}")
+
+        if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+            logger.info(f"📡 MQTT received -> MAC: {normalized_mac}, Lat: {lat}, Lng: {lng}")
             with coords_lock:
-                latest_coords[mac] = {
-                    'lat': lat,
-                    'lng': lng,
+                latest_coords[normalized_mac] = {
+                    'lat': float(lat),
+                    'lng': float(lng),
                     'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
                 }
-            write_to_log(mac, lat, lng)
+            write_to_log(normalized_mac, lat, lng)
         else:
-            logger.warning(f"Incomplete MQTT message: {payload}")
+            logger.warning(f"Incomplete or invalid GPS coordinates in MQTT payload: {payload}")
     except Exception as e:
-        logger.error(f"Error processing MQTT message: {e}")
-
+        logger.exception("Error processing MQTT message")
 
 def write_to_log(mac, lat, lng):
     today = datetime.utcnow().strftime('%Y-%m-%d')
@@ -212,25 +220,72 @@ def get_latest_mqtt_coords():
     }), 200
 
 
-@app.route('/gps/live', methods=['GET'])
+# @app.route('/gps/live', methods=['GET'])
+# from flask import Flask, request, jsonify
+# import logging
+# import threading
+#
+# app = Flask(__name__)
+#
+# # Setup logger
+# logging.basicConfig(level=logging.DEBUG)
+# logger = logging.getLogger(__name__)
+#
+# # Simulated data store
+# latest_coords = {}
+# coords_lock = threading.Lock()
+
+@app.route("/gps/live", methods=["GET"])
 def get_latest_mqtt_coords_live():
-    logger.debug("Function: get_latest_mqtt_coords() called")
+    logger.debug("Function: get_latest_mqtt_coords_live() called")
+
     mac = request.args.get("mac")
-    logger.debug(f"Received request for latest GPS for MAC: {mac}")
+    client_ip = request.remote_addr
+
+    logger.debug(f"Raw MAC from request: {mac} | Client IP: {client_ip}")
 
     if not mac:
+        logger.warning(f"[{client_ip}] MAC address missing from request")
         return jsonify({"error": "MAC address is required"}), 400
 
-    with coords_lock:
-        data = latest_coords.get(mac)
+    normalized_mac = mac.strip().upper()
+    logger.debug(f"Normalized MAC: {normalized_mac}")
+
+    try:
+        with coords_lock:
+            logger.debug("Acquired coords_lock")
+            data = latest_coords.get(normalized_mac)
+    except Exception as e:
+        logger.exception("Exception occurred while accessing latest_coords")
+        return jsonify({"error": "Internal server error"}), 500
+    finally:
+        logger.debug("Released coords_lock")
 
     if not data:
+        logger.warning(f"[{client_ip}] No data found for MAC: {normalized_mac}")
         return jsonify({"error": "No data available for this MAC"}), 404
 
+    if not isinstance(data, dict):
+        logger.error(f"Invalid data type for MAC {normalized_mac}: {type(data)}")
+        return jsonify({"error": "Corrupted data format"}), 500
+
+    if not all(k in data for k in ['lat', 'lng', 'timestamp']):
+        logger.error(f"Incomplete data found for MAC {normalized_mac}: {data}")
+        return jsonify({"error": "Corrupted GPS data"}), 500
+
+    try:
+        lat = float(data['lat'])
+        lng = float(data['lng'])
+    except Exception as e:
+        logger.exception(f"Failed to convert coordinates to float for MAC {normalized_mac}")
+        return jsonify({"error": "Invalid coordinate values"}), 500
+
+    logger.info(f"[{client_ip}] Returning GPS for {normalized_mac} → lat={lat}, lng={lng}, ts={data['timestamp']}")
+
     return jsonify({
-        "mac": mac,
-        "latitude": data['lat'],
-        "longitude": data['lng'],
+        "mac": normalized_mac,
+        "latitude": lat,
+        "longitude": lng,
         "timestamp": data['timestamp'],
         "source": "MQTT"
     }), 200
@@ -475,35 +530,49 @@ def start_mqtt():
     client.connect(MQTT_BROKER, MQTT_PORT, 60)
     client.loop_forever()
 
-import requests
-from flask import jsonify, request
-
-import requests
-from flask import Blueprint, request, jsonify
-
-proxy_bp = Blueprint('proxy', __name__)
-
-@proxy_bp.route('/api/marine_weather')
+@app.route('/api/marine_weather')
 def marine_weather_proxy():
     lat = request.args.get('lat')
     lon = request.args.get('lon')
+
+    logger.debug("Function: marine_weather_proxy() called")
+    logger.debug(f"Received lat: {lat}, lon: {lon}")
+
     if not lat or not lon:
+        logger.warning("Missing lat or lon in request")
         return jsonify({"error": "Missing lat or lon"}), 400
 
+    url = f'https://map.openseamap.org/weather.php?lat={lat}&lon={lon}'
+    logger.debug(f"Upstream request URL: {url}")
+
     try:
-        url = f'https://map.openseamap.org/php/weather.php?lat={lat}&lon={lon}'
         response = requests.get(url, timeout=5)
+        logger.debug(f"Upstream status code: {response.status_code}")
+        logger.debug(f"Upstream content-type: {response.headers.get('Content-Type')}")
+        logger.debug(f"Upstream response preview: {response.text[:300]}")
 
         if response.status_code != 200:
-            return jsonify({"error": "Upstream service failed", "status": response.status_code}), 502
+            logger.warning(f"Upstream service failed with status: {response.status_code}")
+            return jsonify({
+                "error": "Upstream service failed",
+                "status": response.status_code,
+                "preview": response.text[:300]
+            }), 502
 
         try:
-            return jsonify(response.json())
+            data = response.json()
+            logger.debug(f"Parsed JSON from upstream: {data}")
+            return jsonify(data)
         except ValueError:
-            # Server returned non-JSON body (HTML or blank)
-            return jsonify({"error": "Invalid JSON from upstream"}), 502
+            logger.error("Upstream returned non-JSON content")
+            return jsonify({
+                "error": "Invalid JSON from upstream",
+                "content_type": response.headers.get("Content-Type"),
+                "body": response.text[:300]
+            }), 502
 
     except Exception as e:
+        logger.exception("Exception occurred during proxy fetch")
         return jsonify({"error": str(e)}), 500
 
 

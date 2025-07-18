@@ -573,7 +573,7 @@ function fetchLiveRoute(mac) {
     document.getElementById("mac-label").style.display = "block";  // Show the label
   }
 
-  fetch(`/gps?mac=${encodeURIComponent(mac)}`)
+  fetch(`/gps/live?mac=${encodeURIComponent(mac)}`)
     .then(response => {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
