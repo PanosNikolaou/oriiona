@@ -3,133 +3,133 @@
 
 {% block content %}
 <style>
-  /* General Top Panel */
-  .top-panel {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    align-items: center;
-    background-color: #333;
-    color: white;
-    padding: 15px;
-    margin-bottom: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-  }
+    /* General Top Panel */
+    .top-panel {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      align-items: center;
+      background-color: #333;
+      color: white;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
 
-  .top-panel button,
-  .top-panel select {
-    background-color: #4CAF50;
-    color: white;
-    padding: 10px 15px;
-    margin: 5px 10px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background-color 0.3s ease;
-  }
+    .top-panel button,
+    .top-panel select {
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 15px;
+      margin: 5px 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s ease;
+    }
 
-  .top-panel button:hover,
-  .top-panel select:hover { background-color: #45a049; }
+    .top-panel button:hover,
+    .top-panel select:hover { background-color: #45a049; }
 
-  /* Specific button overrides */
-  #manualRefresh { background-color: #2196F3; }
-  #manualRefresh:hover { background-color: #1976D2; }
-  #loggingToggle.off { background-color: #f44336; }
-  #loggingToggle.off:hover { background-color: #45a049; }
+    /* Specific button overrides */
+    #manualRefresh { background-color: #2196F3; }
+    #manualRefresh:hover { background-color: #1976D2; }
+    #loggingToggle.off { background-color: #f44336; }
+    #loggingToggle.off:hover { background-color: #45a049; }
 
-  /* Map styling */
-  #map { height: 80vh; width: 100%; }
+    /* Map styling */
+    #map { height: 80vh; width: 100%; }
 
-  /* GPS Panel */
-  #gps-panel {
-    position: absolute;
-    top: 10px;
-    left: 50px;
-    width: 200px;
-    background: rgba(255,255,255,0.9);
-    padding: 10px 14px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-family: monospace;
-    font-size: 14px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    z-index: 999;
-  }
+    /* GPS Panel */
+    #gps-panel {
+      position: absolute;
+      top: 10px;
+      left: 50px;
+      width: 200px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-family: monospace;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      z-index: 999;
+    }
 
-  #gps-probe { font-size: 18px; transition: color 0.3s; }
-  .gps-on { color: limegreen; animation: blink 0.6s step-start infinite; }
-  .gps-off { color: gray; }
-  @keyframes blink { 50% { color: transparent; } }
+    #gps-probe { font-size: 18px; transition: color 0.3s; }
+    .gps-on { color: limegreen; animation: blink 0.6s step-start infinite; }
+    .gps-off { color: gray; }
+    @keyframes blink { 50% { color: transparent; } }
 
-  /* Controls */
-  #controls {
-    position: absolute;
-    top: 100px;
-    left: 20px;
-    z-index: 999;
-    background-color: rgba(255,255,255,0.92);
-    padding: 12px 16px;
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    align-items: stretch;
-    font-family: Arial, sans-serif;
-  }
+    /* Controls */
+    #controls {
+      position: absolute;
+      top: 100px;
+      left: 20px;
+      z-index: 999;
+      background-color: rgba(255,255,255,0.92);
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: stretch;
+      font-family: Arial, sans-serif;
+    }
 
-  #controls input, #controls button {
-    width: 100%;
-    padding: 6-12px;
-    border-radius: 4px;
-    font-size: 14px;
-    box-sizing: border-box;
-  }
+    #controls input, #controls button {
+      width: 100%;
+      padding: 6-12px;
+      border-radius: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
 
-  #controls button {
-    background-color: #4CAF50;
-    color: white;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.3s;
-  }
+    #controls button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
 
-  #controls button:hover { background-color: #388e3c; }
+    #controls button:hover { background-color: #388e3c; }
 
-  /* Analysis Widget */
-  #analysis-widget {
-    position: absolute;
-    top: 20px;
-    right: 220px;
-    width: 300px;
-    background-color: #333;
-    color: white;
-    border-radius: 8px;
-    padding: 10px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    z-index: 998;
-    display: none;
-  }
-  #analysis-widget h4 { text-align: center; margin-bottom: 10px; font-size: 20px; color: #ffcc00; }
-  #analysis-widget button { background-color: #2196F3; }
-  #analysis-widget button:hover { background-color: #1976D2; }
+    /* Analysis Widget */
+    #analysis-widget {
+      position: absolute;
+      top: 20px;
+      right: 220px;
+      width: 300px;
+      background-color: #333;
+      color: white;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 998;
+      display: none;
+    }
+    #analysis-widget h4 { text-align: center; margin-bottom: 10px; font-size: 20px; color: #ffcc00; }
+    #analysis-widget button { background-color: #2196F3; }
+    #analysis-widget button:hover { background-color: #1976D2; }
 
-  #mac-label {
-    position: absolute;
-    top: 12px;
-    right: 20px;
-    background-color: rgba(31,31,31,0.9);
-    color: #80ffd3;
-    padding: 6px 12px;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    border: 1px solid #80ffd3;
-    border-radius: 4px;
-    z-index: 999;
-    display: none;
-  }
+    #mac-label {
+      position: absolute;
+      top: 12px;
+      right: 20px;
+      background-color: rgba(31,31,31,0.9);
+      color: #80ffd3;
+      padding: 6px 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      border: 1px solid #80ffd3;
+      border-radius: 4px;
+      z-index: 999;
+      display: none;
+    }
 
 </style>
 
@@ -137,77 +137,84 @@
 
 <!-- Top Panel Controls -->
 <div class="top-panel">
-  <button onclick="saveRoute()">💾 Save Route</button>
-  <select id="savedRoutes" onchange="loadRoute()"><option value="">📁 Load Saved Route</option></select>
-  <button onclick="deleteRoute()">🗑️ Delete Route</button>
-  <select id="playSelect">
-    <option value="live">▶️ Play Live Route</option>
-    <option value="saved">▶️ Play Saved Route</option>
-  </select>
-  <button onclick="playRoute()">▶️ Play</button>
-  <button onclick="clearRoute()">🧹 Clear Map</button>
-  <button id="toggleAuto" onclick="toggleAutoUpdate()">Auto-Update: ON</button>
-  <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
-  <button id="loggingToggle" onclick="toggleLogging()">Enable Logging: ON</button>
-  <button onclick="toggleAnalysis()">📊 Toggle Analysis</button>
-  <select id="mapStyle" onchange="changeMapStyle(this.value)">
-    <option value="osm">🗺️ OSM</option>
-    <option value="satellite">🛰️ Satellite</option>
-    <option value="dark">🌙 Dark</option>
-    <option value="toner">🖤 Toner</option>
-    <option value="opensea">⚓ OpenSeaMap</option>
-  </select>
-  <div id="opensea-options" style="display:none; margin-left:20px;">
-    <label><input type="checkbox" value="seamark" onchange="toggleOpenSeaLayer(this,'seamark')" checked> Seamark</label>
-    <label><input type="checkbox" value="depth" onchange="toggleOpenSeaLayer(this,'depth')" checked> Depth Contours</label>
-    <label><input type="checkbox" value="harbour" onchange="toggleOpenSeaLayer(this,'harbour')" checked> Harbours</label>
-    <label><input type="checkbox" value="light" onchange="toggleOpenSeaLayer(this,'light')" checked> Lighthouses</label>
-    <label><input type="checkbox" value="aerialway" onchange="toggleOpenSeaLayer(this,'aerialway')"> Aerialways</label>
-  </div>
+    <button onclick="saveRoute()">💾 Save Route</button>
+    <select id="savedRoutes" onchange="loadRoute()">
+        <option value="">📁 Load Saved Route</option>
+    </select>
+    <button onclick="deleteRoute()">🗑️ Delete Route</button>
+    <select id="playSelect">
+        <option value="live">▶️ Play Live Route</option>
+        <option value="saved">▶️ Play Saved Route</option>
+    </select>
+    <button onclick="playRoute()">▶️ Play</button>
+    <button onclick="clearRoute()">🧹 Clear Map</button>
+    <button id="toggleAuto" onclick="toggleAutoUpdate()">Auto-Update: ON</button>
+    <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
+    <button id="loggingToggle" onclick="toggleLogging()">Enable Logging: ON</button>
+    <button onclick="toggleAnalysis()">📊 Toggle Analysis</button>
+    <select id="mapStyle" onchange="changeMapStyle(this.value)">
+        <option value="osm">🗺️ OSM</option>
+        <option value="satellite">🛰️ Satellite</option>
+        <option value="dark">🌙 Dark</option>
+        <option value="toner">🖤 Toner</option>
+        <option value="opensea">⚓ OpenSeaMap</option>
+    </select>
+    <div id="opensea-options" style="display:none; margin-left:20px;">
+        <label><input type="checkbox" value="seamark" onchange="toggleOpenSeaLayer(this,'seamark')" checked>
+            Seamark</label>
+        <label><input type="checkbox" value="depth" onchange="toggleOpenSeaLayer(this,'depth')" checked> Depth Contours</label>
+        <label><input type="checkbox" value="harbour" onchange="toggleOpenSeaLayer(this,'harbour')" checked>
+            Harbours</label>
+        <label><input type="checkbox" value="light" onchange="toggleOpenSeaLayer(this,'light')" checked>
+            Lighthouses</label>
+        <label><input type="checkbox" value="aerialway" onchange="toggleOpenSeaLayer(this,'aerialway')">
+            Aerialways</label>
+    </div>
 </div>
 
 <!-- Map Container -->
 <div id="map">
-  <!-- GPS Panel -->
-  <div id="gps-panel">
-    <div><strong>Latitude:</strong> <span id="lat-display">--</span></div>
-    <div><strong>Longitude:</strong> <span id="lng-display">--</span></div>
-    <div><strong>Speed:</strong> <span id="speed-display">--</span> km/h</div>
-    <div><strong>GPS Probe:</strong> <span id="gps-probe" class="gps-off">●</span></div>
-  </div>
+    <!-- GPS Panel -->
+    <div id="gps-panel">
+        <div><strong>Latitude:</strong> <span id="lat-display">--</span></div>
+        <div><strong>Longitude:</strong> <span id="lng-display">--</span></div>
+        <div><strong>Speed:</strong> <span id="speed-display">--</span> km/h</div>
+        <div><strong>GPS Probe:</strong> <span id="gps-probe" class="gps-off">●</span></div>
+    </div>
 
-  <!-- Historical Route Controls -->
-  <div id="controls">
-    <input type="text" id="macInput" placeholder="Enter MAC address"/>
-    <input type="date" id="dateInput"/>
-    <button onclick="loadHistoricalRoute()">📍 Load Historical Route</button>
-  </div>
+    <!-- Historical Route Controls -->
+    <div id="controls">
+        <input type="text" id="macInput" placeholder="Enter MAC address"/>
+        <input type="date" id="dateInput"/>
+        <button onclick="loadHistoricalRoute()">📍 Load Historical Route</button>
+    </div>
 
-  <!-- Analysis Widget -->
-  <div id="analysis-widget">
-    <h4>🧮 Analysis</h4>
-    <button onclick="showElevation()">Elevation Profile</button>
-    <button onclick="showSpeedGraph()">Speed Graph</button>
-    <button onclick="toggleHeatmap()">Toggle Heatmap</button>
-    <button onclick="detectIdleStops()">Detect Idle</button>
-    <button onclick="colorBySpeed()">Color by Speed</button>
-  </div>
+    <!-- Analysis Widget -->
+    <div id="analysis-widget">
+        <h4>🧮 Analysis</h4>
+        <button onclick="showElevation()">Elevation Profile</button>
+        <button onclick="showSpeedGraph()">Speed Graph</button>
+        <button onclick="toggleHeatmap()">Toggle Heatmap</button>
+        <button onclick="detectIdleStops()">Detect Idle</button>
+        <button onclick="colorBySpeed()">Color by Speed</button>
+    </div>
 
-  <div id="mac-label">MAC: <span id="mac-value">N/A</span></div>
+    <div id="mac-label">MAC: <span id="mac-value">N/A</span></div>
 
-  <!-- Speed Legend -->
-  <div style="position:absolute; top:100px; right:20px; z-index:1000; background:white; padding:8px; border-radius:6px;">
-    <strong>Speed Legend (km/h)</strong><br>
-    <span style="color:blue;">●</span> 0–10<br>
-    <span style="color:limegreen;">●</span> 10–30<br>
-    <span style="color:orange;">●</span> 30–60<br>
-    <span style="color:red;">●</span> 60+
-  </div>
+    <!-- Speed Legend -->
+    <div style="position:absolute; top:100px; right:20px; z-index:1000; background:white; padding:8px; border-radius:6px;">
+        <strong>Speed Legend (km/h)</strong><br>
+        <span style="color:blue;">●</span> 0–10<br>
+        <span style="color:limegreen;">●</span> 10–30<br>
+        <span style="color:orange;">●</span> 30–60<br>
+        <span style="color:red;">●</span> 60+
+    </div>
 
-  <!-- Marine Weather -->
-  <div id="marine-weather" style="position:absolute; bottom:20px; left:20px; background:rgba(0,0,0,0.7); color:white; padding:10px; border-radius:6px; font-size:14px; z-index:999;">
-    🌊 Marine weather data will appear here
-  </div>
+    <!-- Marine Weather -->
+    <div id="marine-weather"
+         style="position:absolute; bottom:20px; left:20px; background:rgba(0,0,0,0.7); color:white; padding:10px; border-radius:6px; font-size:14px; z-index:999;">
+        🌊 Marine weather data will appear here
+    </div>
 </div>
 
 <!-- Leaflet & Plugins -->
@@ -219,122 +226,151 @@
 
 {% block script_extra %}
 <script>
-  // ===== MAP INITIALIZATION =====
-  let map = L.map('map').setView([37.5, 22.37], 16);
-  let routeLine, liveCoords=[], animMarker, startMarker, endMarker, intervalId, heatLayer;
-  let autoUpdate=true, macAddress='08:3A:8D:DE:E5:10';
-  let previousCoords=null, previousTimestamp=null, heatVisible=false;
+    // ===== MAP INITIALIZATION =====
+    let map = L.map('map').setView([37.5, 22.37], 16);
+    let routeLine, liveCoords=[], animMarker, startMarker, endMarker, intervalId, heatLayer;
+    let autoUpdate=true, macAddress='08:3A:8D:DE:E5:10';
+    let previousCoords=null, previousTimestamp=null, heatVisible=false;
 
-  // ===== TILE LAYERS =====
-  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' });
-  const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' });
-  const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CartoDB', subdomains:'abcd' });
-  const toner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', { attribution:'Stamen' });
-  osm.addTo(map);
-
-  const openSeaLayers = {
-    seamark: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { attribution:'© OpenSeaMap', transparent:true }),
-    depth: L.tileLayer('https://tiles.openseamap.org/seabath/{z}/{x}/{y}.png',{ attribution:'© OpenSeaMap', transparent:true }),
-    harbour: L.tileLayer('https://tiles.openseamap.org/harbour/{z}/{x}/{y}.png',{ attribution:'© OpenSeaMap', transparent:true }),
-    light: L.tileLayer('https://tiles.openseamap.org/lighthouses/{z}/{x}/{y}.png',{ attribution:'© OpenSeaMap', transparent:true }),
-    aerialway: L.tileLayer('https://tiles.openseamap.org/aerialway/{z}/{x}/{y}.png',{ attribution:'© OpenSeaMap', transparent:true }),
-  };
-
-  const tileLayers = { osm, satellite, dark, toner, opensea:L.layerGroup([osm]) };
-
-  // ===== MAP STYLE CONTROL =====
-  function changeMapStyle(style){
-    Object.values(tileLayers).forEach(l=>map.removeLayer(l));
-    Object.values(openSeaLayers).forEach(l=>map.removeLayer(l));
-
-    if(style==='opensea'){
-      tileLayers.osm.addTo(map);
-      document.getElementById('opensea-options').style.display='inline-block';
-      Object.keys(openSeaLayers).forEach(k=>{
-        const cb=document.querySelector(`#opensea-options input[value=${k}]`);
-        if(cb && cb.checked) openSeaLayers[k].addTo(map);
+      // ===== TILE LAYERS =====
+      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
       });
-    }else document.getElementById('opensea-options').style.display='none', tileLayers[style].addTo(map);
-  }
+      const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri'
+      });
+      const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB',
+        subdomains:'abcd'
+      });
+      const toner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+        attribution:'Stamen'
+      });
+      const tileLayers = { osm, satellite, dark, toner };
 
-  function toggleOpenSeaLayer(checkbox, layerKey){
-    checkbox.checked ? openSeaLayers[layerKey].addTo(map) : map.removeLayer(openSeaLayers[layerKey]);
-  }
+      // OpenSeaMap layers without unsupported transparent option, but with some opacity for visibility
+      const openSeaLayers = {
+        seamark: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+          attribution:'© OpenSeaMap', opacity: 0.8 }),
+        depth: L.tileLayer('https://tiles.openseamap.org/seabath/{z}/{x}/{y}.png', {
+          attribution:'© OpenSeaMap', opacity: 0.6 }),
+        harbour: L.tileLayer('https://tiles.openseamap.org/harbour/{z}/{x}/{y}.png', {
+          attribution:'© OpenSeaMap', opacity: 0.7 }),
+        light: L.tileLayer('https://tiles.openseamap.org/lighthouses/{z}/{x}/{y}.png', {
+          attribution:'© OpenSeaMap', opacity: 0.9 }),
+        aerialway: L.tileLayer('https://tiles.openseamap.org/aerialway/{z}/{x}/{y}.png', {
+          attribution:'© OpenSeaMap', opacity: 0.7 }),
+      };
 
-  // ===== GPS / ROUTE UTILS =====
-  function haversineDistance(lat1, lon1, lat2, lon2){
-    const R=6371e3, toRad=x=>x*Math.PI/180;
-    const φ1=toRad(lat1), φ2=toRad(lat2);
-    const Δφ=toRad(lat2-lat1), Δλ=toRad(lon2-lon1);
-    const a=Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-    return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-  }
+      // ===== MAP STYLE CONTROL =====
+      function changeMapStyle(style){
+        // Remove all base tile layers first
+        Object.values(tileLayers).forEach(l => map.removeLayer(l));
+        // Remove all OpenSeaMap overlays
+        Object.values(openSeaLayers).forEach(l => map.removeLayer(l));
 
-  function drawRoute(coords, color='blue'){
-    if(routeLine) map.removeLayer(routeLine);
-    if(startMarker) map.removeLayer(startMarker);
-    if(endMarker) map.removeLayer(endMarker);
-    routeLine=L.polyline(coords,{color}).addTo(map);
-    startMarker=L.marker(coords[0]).addTo(map).bindPopup('🚩 Start');
-    endMarker=L.marker(coords[coords.length-1]).addTo(map).bindPopup('🏁 End');
-    map.fitBounds(routeLine.getBounds());
-  }
+        if(style === 'opensea'){
+          document.getElementById('opensea-options').style.display = 'inline-block';
 
-  // ===== LIVE GPS FETCH =====
-  function fetchLiveRoute(mac=macAddress){
-    if(!mac) return console.log("No MAC provided");
-    fetch(`/gps/live?mac=${encodeURIComponent(mac)}`)
-      .then(r=>r.json())
-      .then(data=>{
-        if(data.error) return console.warn(data.error);
-        const {latitude:lat, longitude:lng} = data;
-        const now=Date.now();
-        if(typeof lat!=='number' || typeof lng!=='number') return;
+          // Add base OSM layer
+          osm.addTo(map);
 
-        document.getElementById("lat-display").textContent=lat.toFixed(6);
-        document.getElementById("lng-display").textContent=lng.toFixed(6);
-
-        const probeEl=document.getElementById("gps-probe");
-        probeEl.classList.remove("gps-on"); void probeEl.offsetWidth; probeEl.classList.add("gps-on");
-
-        if(previousCoords && previousCoords.lat===lat && previousCoords.lng===lng) return;
-
-        if(previousCoords && previousTimestamp){
-          const speedKph=(haversineDistance(previousCoords.lat, previousCoords.lng, lat, lng)/((now-previousTimestamp)/1000))*3.6;
-          document.getElementById("speed-display").textContent=speedKph.toFixed(2);
+          // Add overlays from checked boxes
+          Object.keys(openSeaLayers).forEach(key => {
+            const cb = document.querySelector(`#opensea-options input[value=${key}]`);
+            if(cb && cb.checked){
+              openSeaLayers[key].addTo(map);
+            }
+          });
+        } else {
+          document.getElementById('opensea-options').style.display = 'none';
+          tileLayers[style].addTo(map);
         }
+      }
 
-        previousCoords={lat,lng}; previousTimestamp=now;
-        liveCoords.push({lat,lng,timestamp:now});
-        drawRoute(liveCoords.map(c=>[c.lat,c.lng]),'blue');
-      }).catch(err=>{
-        console.error(err);
-        const probeEl=document.getElementById("gps-probe");
-        probeEl.classList.remove("gps-on"); probeEl.classList.add("gps-off");
-      });
-  }
+      // ===== TOGGLE OPENSEAMAP LAYERS =====
+      function toggleOpenSeaLayer(checkbox, layerKey){
+        if(checkbox.checked){
+          openSeaLayers[layerKey].addTo(map);
+        } else {
+          map.removeLayer(openSeaLayers[layerKey]);
+        }
+      }
 
-  // ===== AUTO UPDATE =====
-  function toggleAutoUpdate(){
-    autoUpdate=!autoUpdate;
-    const toggleBtn=document.getElementById('toggleAuto');
-    const refreshBtn=document.getElementById('manualRefresh');
-    toggleBtn.textContent=autoUpdate?"Auto-Update: ON":"Auto-Update: OFF";
-    refreshBtn.style.display=autoUpdate?'none':'inline-block';
-    clearInterval(intervalId);
-    if(autoUpdate && macAddress) intervalId=setInterval(()=>fetchLiveRoute(macAddress),5000);
-  }
-  intervalId=setInterval(()=>macAddress && fetchLiveRoute(macAddress),5000);
+    // ===== GPS / ROUTE UTILS =====
+    function haversineDistance(lat1, lon1, lat2, lon2){
+      const R=6371e3, toRad=x=>x*Math.PI/180;
+      const φ1=toRad(lat1), φ2=toRad(lat2);
+      const Δφ=toRad(lat2-lat1), Δλ=toRad(lon2-lon1);
+      const a=Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+      return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+    }
 
-  // ===== LOGGING =====
-  function toggleLogging(){
-    const btn=document.getElementById('loggingToggle');
-    btn.classList.toggle('off');
-    btn.textContent=btn.classList.contains('off')?"Enable Logging: OFF":"Enable Logging: ON";
-  }
+    function drawRoute(coords, color='blue'){
+      if(routeLine) map.removeLayer(routeLine);
+      if(startMarker) map.removeLayer(startMarker);
+      if(endMarker) map.removeLayer(endMarker);
+      routeLine=L.polyline(coords,{color}).addTo(map);
+      startMarker=L.marker(coords[0]).addTo(map).bindPopup('🚩 Start');
+      endMarker=L.marker(coords[coords.length-1]).addTo(map).bindPopup('🏁 End');
+      map.fitBounds(routeLine.getBounds());
+    }
 
-  // ===== INITIALIZATION =====
-  fetchLiveRoute(macAddress);
-  fetchSavedRoutes();
+    // ===== LIVE GPS FETCH =====
+    function fetchLiveRoute(mac=macAddress){
+      if(!mac) return console.log("No MAC provided");
+      fetch(`/gps/live?mac=${encodeURIComponent(mac)}`)
+        .then(r=>r.json())
+        .then(data=>{
+          if(data.error) return console.warn(data.error);
+          const {latitude:lat, longitude:lng} = data;
+          const now=Date.now();
+          if(typeof lat!=='number' || typeof lng!=='number') return;
+
+          document.getElementById("lat-display").textContent=lat.toFixed(6);
+          document.getElementById("lng-display").textContent=lng.toFixed(6);
+
+          const probeEl=document.getElementById("gps-probe");
+          probeEl.classList.remove("gps-on"); void probeEl.offsetWidth; probeEl.classList.add("gps-on");
+
+          if(previousCoords && previousCoords.lat===lat && previousCoords.lng===lng) return;
+
+          if(previousCoords && previousTimestamp){
+            const speedKph=(haversineDistance(previousCoords.lat, previousCoords.lng, lat, lng)/((now-previousTimestamp)/1000))*3.6;
+            document.getElementById("speed-display").textContent=speedKph.toFixed(2);
+          }
+
+          previousCoords={lat,lng}; previousTimestamp=now;
+          liveCoords.push({lat,lng,timestamp:now});
+          drawRoute(liveCoords.map(c=>[c.lat,c.lng]),'blue');
+        }).catch(err=>{
+          console.error(err);
+          const probeEl=document.getElementById("gps-probe");
+          probeEl.classList.remove("gps-on"); probeEl.classList.add("gps-off");
+        });
+    }
+
+    // ===== AUTO UPDATE =====
+    function toggleAutoUpdate(){
+      autoUpdate=!autoUpdate;
+      const toggleBtn=document.getElementById('toggleAuto');
+      const refreshBtn=document.getElementById('manualRefresh');
+      toggleBtn.textContent=autoUpdate?"Auto-Update: ON":"Auto-Update: OFF";
+      refreshBtn.style.display=autoUpdate?'none':'inline-block';
+      clearInterval(intervalId);
+      if(autoUpdate && macAddress) intervalId=setInterval(()=>fetchLiveRoute(macAddress),5000);
+    }
+    intervalId=setInterval(()=>macAddress && fetchLiveRoute(macAddress),5000);
+
+    // ===== LOGGING =====
+    function toggleLogging(){
+      const btn=document.getElementById('loggingToggle');
+      btn.classList.toggle('off');
+      btn.textContent=btn.classList.contains('off')?"Enable Logging: OFF":"Enable Logging: ON";
+    }
+
+    // ===== INITIALIZATION =====
+    fetchLiveRoute(macAddress);
+    fetchSavedRoutes();
 </script>
 {% endblock %}
