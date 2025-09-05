@@ -1,260 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>{% block title %}Oriiona{% endblock %}</title>
   <link rel="icon" type="image/ico" href="{{ url_for('static', filename='favicon.ico') }}">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    #analysis-widget {
-      position: fixed;
-      top: 80px;
-      right: 20px;
-      background-color: #1f1f1f;
-      border: 1px solid #80ffd3;
-      padding: 10px;
-      width: 180px;
-      z-index: 1000;
-      font-family: "Courier New", monospace;
-      color: #f5f5f5;
-      border-radius: 6px;
-    }
 
-    #analysis-widget h4 {
-      margin-top: 0;
-      font-size: 14px;
-      color: #80ffd3;
-      text-align: center;
-    }
+  <!-- Styles -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
-    #analysis-widget button {
-      width: 100%;
-      margin: 4px 0;
-      padding: 5px;
-      font-size: 12px;
-      background: transparent;
-      color: #80ffd3;
-      border: 1px solid #80ffd3;
-      cursor: pointer;
-    }
-
-    #analysis-widget button:hover {
-      background-color: #2e2e2e;
-    }
-
-    :root {
-      --bg-dark: #121212;
-      --bg-light: #1f1f1f;
-      --primary: #80ffd3;
-      --accent: #f5f5f5;
-      --border: #444;
-      --hover: #2e2e2e;
-      --font: "Courier New", monospace;
-    }
-
-    body {
-      margin: 0;
-      font-family: var(--font);
-      background-color: var(--bg-dark);
-      color: var(--accent);
-    }
-
-    #sidebar {
-      height: 100vh;
-      width: 220px;
-      position: fixed;
-      background-color: var(--bg-light);
-      border-right: 1px solid var(--border);
-      padding: 20px;
-      box-sizing: border-box;
-    }
-
-    #sidebar h3 {
-      text-align: center;
-      color: var(--primary);
-      letter-spacing: 1px;
-      font-weight: normal;
-      margin-bottom: 2rem;
-    }
-
-    #sidebar a {
-      display: block;
-      padding: 10px 12px;
-      margin-bottom: 8px;
-      color: var(--accent);
-      text-decoration: none;
-      border: 1px solid transparent;
-      transition: 0.2s;
-    }
-
-    #sidebar a:hover {
-      background-color: var(--hover);
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-
-    #main {
-      margin-left: 220px;
-      padding: 20px;
-    }
-
-    /* Modal styles */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 999;
-      padding-top: 100px;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.75);
-    }
-
-    .modal-content {
-      background-color: var(--bg-light);
-      margin: auto;
-      padding: 20px;
-      border: 1px solid var(--primary);
-      width: 90%;
-      max-width: 420px;
-      border-radius: 6px;
-      font-family: var(--font);
-      color: var(--accent);
-    }
-
-    .close {
-      float: right;
-      font-size: 20px;
-      font-weight: bold;
-      cursor: pointer;
-      color: var(--primary);
-    }
-
-    .close:hover {
-      color: #ff7676;
-    }
-
-    .modal h3 {
-      margin-top: 0;
-      font-size: 20px;
-      color: var(--primary);
-    }
-
-    .modal label {
-      display: block;
-      margin-top: 1rem;
-      font-weight: bold;
-    }
-
-    .modal input[type="file"] {
-      margin-top: 0.3rem;
-      background-color: var(--bg-dark);
-      border: 1px dashed var(--primary);
-      padding: 6px;
-      color: var(--accent);
-      width: 100%;
-    }
-
-    .modal a {
-      display: block;
-      margin-top: 0.5rem;
-      color: var(--primary);
-      text-decoration: none;
-    }
-
-    .modal a:hover {
-      text-decoration: underline;
-    }
-
-    .btn {
-      font-family: var(--font);
-      background-color: transparent;
-      border: 1px solid var(--primary);
-      color: var(--primary);
-      padding: 6px 12px;
-      margin-top: 10px;
-      cursor: pointer;
-    }
-
-    .btn:hover {
-      background-color: var(--hover);
-    }
-
-
-#page-loader {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(18, 18, 18, 0.85); /* dark transparent overlay */
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.spinner {
-  border: 6px solid #444;
-  border-top: 6px solid #80ffd3;
-  border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-
-    /* Responsive fallback */
-    @media screen and (max-width: 600px) {
-      #sidebar {
-        width: 100%;
-        height: auto;
-        position: relative;
-      }
-
-      #main {
-        margin-left: 0;
-      }
-
-    }
-  </style>
   {% block head_extra %}{% endblock %}
 </head>
 <body>
-<div id="page-loader">
+<!-- Loader -->
+<div id="page-loader" role="status" aria-label="Loading page">
   <div class="spinner"></div>
 </div>
 
-<div id="sidebar">
+<!-- Sidebar -->
+<div id="sidebar" role="navigation" aria-label="Main navigation">
   <h3>ORIIONA</h3>
   <a href="/">Home</a>
   <a href="/map">Live Map</a>
   <a href="/logs">Logs</a>
-  <a href="javascript:void(0)" onclick="openModal()">Import / Export</a>
+  <a href="#" id="importExportBtn">Import / Export</a>
 </div>
 
+<!-- Main -->
 <div id="main">
+  <span id="menu-toggle">☰ Menu</span>
   {% block content %}{% endblock %}
 </div>
 
 <!-- Modal -->
-<div id="importExportModal" class="modal">
+<div id="importExportModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
   <div class="modal-content">
-    <span class="close" onclick="closeModal()">&times;</span>
-    <h3>Import / Export</h3>
+    <span class="close" id="modalClose">&times;</span>
+    <h3 id="modal-title">Import / Export</h3>
 
     <label for="uploadCSV">Load CSV:</label>
-    <input type="file" id="uploadCSV" accept=".csv" onchange="uploadCSV()" />
+    <input type="file" id="uploadCSV" accept=".csv" />
 
     <label for="uploadGPX">Load GPX:</label>
-    <input type="file" id="uploadGPX" accept=".gpx" onchange="uploadGPX()" />
-    <button class="btn" onclick="applyImport()">✅ Apply</button>
+    <input type="file" id="uploadGPX" accept=".gpx" />
+    <button class="btn" id="applyImport">✅ Apply</button>
 
     <hr>
 
@@ -264,91 +53,11 @@
   </div>
 </div>
 
-<script>
-function openModal() {
-  document.getElementById("importExportModal").style.display = "block";
-}
+<!-- Toasts -->
+<div id="toast-container"></div>
 
-function closeModal() {
-  document.getElementById("importExportModal").style.display = "none";
-}
-let importedCoords = [];
-
-function applyImport() {
-  importedCoords = [];
-
-  const csvFile = document.getElementById('uploadCSV').files[0];
-  const gpxFile = document.getElementById('uploadGPX').files[0];
-
-  if (!csvFile && !gpxFile) {
-    alert("⚠️ Please select at least one file (CSV or GPX) to import.");
-    return;
-  }
-
-  if (csvFile) {
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      const lines = e.target.result.split('\n');
-      for (let line of lines) {
-        const parts = line.trim().split(',');
-        if (parts.length === 3) {
-          const lat = parseFloat(parts[1]);
-          const lng = parseFloat(parts[2]);
-          if (!isNaN(lat) && !isNaN(lng)) {
-            importedCoords.push([lat, lng]);
-          }
-        }
-      }
-      if (importedCoords.length) {
-        drawRoute(importedCoords, 'orange');
-        alert("✅ CSV data imported and drawn on map.");
-      } else {
-        alert("⚠️ No valid coordinates found in CSV.");
-      }
-    };
-    reader.readAsText(csvFile);
-  }
-
-  if (gpxFile) {
-    const reader = new FileReader();
-    reader.onload = function (e) {
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(e.target.result, 'application/xml');
-      const trkpts = xml.getElementsByTagName('trkpt');
-      for (let i = 0; i < trkpts.length; i++) {
-        const lat = parseFloat(trkpts[i].getAttribute('lat'));
-        const lon = parseFloat(trkpts[i].getAttribute('lon'));
-        if (!isNaN(lat) && !isNaN(lon)) {
-          importedCoords.push([lat, lon]);
-        }
-      }
-      if (importedCoords.length) {
-        drawRoute(importedCoords, 'purple');
-        alert("✅ GPX data imported and drawn on map.");
-      } else {
-        alert("⚠️ No valid coordinates found in GPX.");
-      }
-    };
-    reader.readAsText(gpxFile);
-  }
-
-  closeModal(); // Optional: auto-close the modal after applying
-}
-
-window.onclick = function(event) {
-  const modal = document.getElementById("importExportModal");
-  if (event.target === modal) {
-    modal.style.display = "none";
-  }
-};
-
-    window.addEventListener("load", function () {
-    const loader = document.getElementById("page-loader");
-    if (loader) loader.style.display = "none";
-  });
-
-</script>
-
+<!-- Scripts -->
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
 {% block script_extra %}{% endblock %}
 </body>
 </html>
