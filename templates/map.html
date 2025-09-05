@@ -2,22 +2,23 @@
 {% block title %}Live Map{% endblock %}
 
 {% block content %}
-
 <style>
+  /* General Top Panel */
   .top-panel {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-start;
     align-items: center;
     background-color: #333;
     color: white;
     padding: 15px;
-    border-radius: 8px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    flex-wrap: wrap;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
   }
 
-  .top-panel button, .top-panel select {
+  .top-panel button,
+  .top-panel select {
     background-color: #4CAF50;
     color: white;
     padding: 10px 15px;
@@ -29,104 +30,97 @@
     transition: background-color 0.3s ease;
   }
 
-  .top-panel button:hover, .top-panel select:hover {
-    background-color: #45a049;
-  }
+  .top-panel button:hover,
+  .top-panel select:hover { background-color: #45a049; }
 
-  #toggleAuto { background-color: #4CAF50; }
-  #toggleAuto:hover { background-color: #45a049; }
+  /* Specific button overrides */
   #manualRefresh { background-color: #2196F3; }
   #manualRefresh:hover { background-color: #1976D2; }
-  #loggingToggle { background-color: #4CAF50; }
-  #loggingToggle:hover { background-color: #e53935; }
   #loggingToggle.off { background-color: #f44336; }
   #loggingToggle.off:hover { background-color: #45a049; }
 
-  #map {
-    height: 80vh;
-    width: 100%;
+  /* Map styling */
+  #map { height: 80vh; width: 100%; }
+
+  /* GPS Panel */
+  #gps-panel {
+    position: absolute;
+    top: 10px;
+    left: 50px;
+    width: 200px;
+    background: rgba(255,255,255,0.9);
+    padding: 10px 14px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-family: monospace;
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    z-index: 999;
   }
 
+  #gps-probe { font-size: 18px; transition: color 0.3s; }
+  .gps-on { color: limegreen; animation: blink 0.6s step-start infinite; }
+  .gps-off { color: gray; }
+  @keyframes blink { 50% { color: transparent; } }
+
+  /* Controls */
+  #controls {
+    position: absolute;
+    top: 100px;
+    left: 20px;
+    z-index: 999;
+    background-color: rgba(255,255,255,0.92);
+    padding: 12px 16px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+    font-family: Arial, sans-serif;
+  }
+
+  #controls input, #controls button {
+    width: 100%;
+    padding: 6-12px;
+    border-radius: 4px;
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+
+  #controls button {
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s;
+  }
+
+  #controls button:hover { background-color: #388e3c; }
+
+  /* Analysis Widget */
   #analysis-widget {
     position: absolute;
-    top: 20px;           /* adjust to appear below the GPS panel */
-    right: 220px;          /* distance from right edge */
+    top: 20px;
+    right: 220px;
+    width: 300px;
     background-color: #333;
     color: white;
     border-radius: 8px;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    width: 300px;
     padding: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     z-index: 998;
-    display: none;        /* initially hidden */
+    display: none;
   }
-
-  #analysis-widget h4 {
-    text-align: center;
-    margin-bottom: 10px;
-    font-size: 20px;
-    color: #ffcc00;
-  }
-
-  #analysis-widget button {
-    background-color: #2196F3;
-  }
-
-  #analysis-widget button:hover {
-    background-color: #1976D2;
-  }
-
-  #gps-panel {
-    position: relative;
-    top: 10px;         /* distance from top of page, adjust as needed */
-    left: 50px;        /* distance from left edge */
-    width: 200px;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 10px 14px;
-    border: 1px solid #ccc;
-    border-radius: 6px;
-    font-family: monospace;
-    font-size: 14px;
-    color: #000;
-    z-index: 999;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-  }
-
-  #gps-probe {
-    font-size: 18px;
-    transition: color 0.3s;
-  }
-
-  .gps-on {
-    color: limegreen;
-    animation: blink 0.6s step-start infinite;
-  }
-
-  .gps-off {
-    color: gray;
-  }
-
-  #mapStyle {
-    background-color: #222;
-    color: white;
-    padding: 10px;
-    border: 1px solid #555;
-    border-radius: 5px;
-    font-size: 14px;
-  }
-
-
-  @keyframes blink {
-    50% { color: transparent; }
-  }
+  #analysis-widget h4 { text-align: center; margin-bottom: 10px; font-size: 20px; color: #ffcc00; }
+  #analysis-widget button { background-color: #2196F3; }
+  #analysis-widget button:hover { background-color: #1976D2; }
 
   #mac-label {
     position: absolute;
     top: 12px;
     right: 20px;
-    margin-top: 10px;
-    margin-left: 30px;
-    background-color: rgba(31, 31, 31, 0.9);
+    background-color: rgba(31,31,31,0.9);
     color: #80ffd3;
     padding: 6px 12px;
     font-family: 'Courier New', monospace;
@@ -137,66 +131,14 @@
     display: none;
   }
 
-#controls {
-  position: absolute;
-  margin-top: 60px;
-  margin-left: 30px;
-  z-index: 999;
-  background-color: rgba(255, 255, 255, 0.92); /* Semi-transparent white */
-  padding: 12px 16px;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;  /* Stack children vertically */
-  gap: 10px;               /* Space between stacked elements */
-  align-items: stretch;    /* Make inputs and button full width */
-  font-family: Arial, sans-serif;
-}
-
-#controls input[type="text"],
-#controls input[type="date"],
-#controls button {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 5px;
-  font-size: 14px;
-  box-sizing: border-box;
-}
-
-
-#controls input[type="text"],
-#controls input[type="date"] {
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-#controls button {
-  background-color: #4CAF50;
-  color: white;
-  padding: 8px 12px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.3s ease;
-}
-
-#controls button:hover {
-  background-color: #388e3c;
-}
-
 </style>
 
 <h2>Live GPS Route</h2>
 
-
+<!-- Top Panel Controls -->
 <div class="top-panel">
   <button onclick="saveRoute()">💾 Save Route</button>
-  <select id="savedRoutes" onchange="loadRoute()">
-    <option value="">📁 Load Saved Route</option>
-  </select>
+  <select id="savedRoutes" onchange="loadRoute()"><option value="">📁 Load Saved Route</option></select>
   <button onclick="deleteRoute()">🗑️ Delete Route</button>
   <select id="playSelect">
     <option value="live">▶️ Play Live Route</option>
@@ -208,26 +150,25 @@
   <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
   <button id="loggingToggle" onclick="toggleLogging()">Enable Logging: ON</button>
   <button onclick="toggleAnalysis()">📊 Toggle Analysis</button>
-<select id="mapStyle" onchange="changeMapStyle(this.value)">
-  <option value="osm">🗺️ OSM</option>
-  <option value="satellite">🛰️ Satellite</option>
-  <option value="dark">🌙 Dark</option>
-  <option value="toner">🖤 Toner</option>
-  <option value="opensea">⚓ OpenSeaMap</option>
-</select>
-<div id="opensea-options" style="display:none; margin-left: 20px;">
-  <label><input type="checkbox" onchange="toggleOpenSeaLayer('seamark')" checked> Seamarks</label>
-  <label><input type="checkbox" onchange="toggleOpenSeaLayer('depth')" checked> Depth Contours</label>
-  <label><input type="checkbox" onchange="toggleOpenSeaLayer('harbour')" checked> Harbours</label>
-  <label><input type="checkbox" onchange="toggleOpenSeaLayer('light')" checked> Lighthouses</label>
-  <label><input type="checkbox" onchange="toggleOpenSeaLayer('aerialway')"> Aerialways</label>
+  <select id="mapStyle" onchange="changeMapStyle(this.value)">
+    <option value="osm">🗺️ OSM</option>
+    <option value="satellite">🛰️ Satellite</option>
+    <option value="dark">🌙 Dark</option>
+    <option value="toner">🖤 Toner</option>
+    <option value="opensea">⚓ OpenSeaMap</option>
+  </select>
+  <div id="opensea-options" style="display:none; margin-left:20px;">
+    <label><input type="checkbox" value="seamark" onchange="toggleOpenSeaLayer(this,'seamark')" checked> Seamark</label>
+    <label><input type="checkbox" value="depth" onchange="toggleOpenSeaLayer(this,'depth')" checked> Depth Contours</label>
+    <label><input type="checkbox" value="harbour" onchange="toggleOpenSeaLayer(this,'harbour')" checked> Harbours</label>
+    <label><input type="checkbox" value="light" onchange="toggleOpenSeaLayer(this,'light')" checked> Lighthouses</label>
+    <label><input type="checkbox" value="aerialway" onchange="toggleOpenSeaLayer(this,'aerialway')"> Aerialways</label>
+  </div>
 </div>
 
-
-</div>
-
-<div id="map">  <!-- GPS Panel -->
-
+<!-- Map Container -->
+<div id="map">
+  <!-- GPS Panel -->
   <div id="gps-panel">
     <div><strong>Latitude:</strong> <span id="lat-display">--</span></div>
     <div><strong>Longitude:</strong> <span id="lng-display">--</span></div>
@@ -235,14 +176,14 @@
     <div><strong>GPS Probe:</strong> <span id="gps-probe" class="gps-off">●</span></div>
   </div>
 
-  <div id="controls" style="position: absolute; top: 100px; left: 20px; z-index: 999;">
-    <input type="text" id="macInput" placeholder="Enter MAC address" />
-    <input type="date" id="dateInput" />
+  <!-- Historical Route Controls -->
+  <div id="controls">
+    <input type="text" id="macInput" placeholder="Enter MAC address"/>
+    <input type="date" id="dateInput"/>
     <button onclick="loadHistoricalRoute()">📍 Load Historical Route</button>
   </div>
 
-    <!-- MAC label -->
-
+  <!-- Analysis Widget -->
   <div id="analysis-widget">
     <h4>🧮 Analysis</h4>
     <button onclick="showElevation()">Elevation Profile</button>
@@ -254,8 +195,8 @@
 
   <div id="mac-label">MAC: <span id="mac-value">N/A</span></div>
 
-
-  <div style="position:absolute; top:100px; right:20px; z-index:1000; background:white; padding:8px; border-radius:6px; color:black;">
+  <!-- Speed Legend -->
+  <div style="position:absolute; top:100px; right:20px; z-index:1000; background:white; padding:8px; border-radius:6px;">
     <strong>Speed Legend (km/h)</strong><br>
     <span style="color:blue;">●</span> 0–10<br>
     <span style="color:limegreen;">●</span> 10–30<br>
@@ -263,775 +204,137 @@
     <span style="color:red;">●</span> 60+
   </div>
 
-  <div id="weather-panel" style="
-  position:absolute;
-  bottom:20px;
-  left:20px;
-  background:rgba(0,0,0,0.7);
-  color:white;
-  padding:10px;
-  border-radius:6px;
-  font-size:14px;
-  z-index:999;">
-  🌊 Marine weather data will appear here
+  <!-- Marine Weather -->
+  <div id="marine-weather" style="position:absolute; bottom:20px; left:20px; background:rgba(0,0,0,0.7); color:white; padding:10px; border-radius:6px; font-size:14px; z-index:999;">
+    🌊 Marine weather data will appear here
+  </div>
 </div>
 
-</div>
-
-
-<!-- Leaflet core JS -->
+<!-- Leaflet & Plugins -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<!-- Then the Leaflet.heat plugin -->
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 {% endblock %}
 
 {% block script_extra %}
 <script>
-let map = L.map('map').setView([37.5, 22.37], 16);
-map.whenReady(() => {
-  const center = map.getCenter();
-  fetchMarineWeather(center.lat, center.lng);
-});
-
-setInterval(() => {
-  const center = map.getCenter();
-  fetchMarineWeather(center.lat, center.lng);
-}, 30000); // every 30s
-
-
-let routeLine = null;
-let liveCoords = [];
-let animMarker = null;
-let startMarker = null;
-let endMarker = null;
-
-let autoUpdate = true;
-let intervalId = null;
-let heatLayer = null;
-
-let speedLayerGroup = L.layerGroup().addTo(map);
-
-function fetchMarineWeather(lat, lon) {
-  const url = `/api/marine_weather?lat=${lat}&lon=${lon}`;
-
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      const w = data?.weather;
-      if (!w) {
-        document.getElementById('marine-weather').innerHTML =
-          "🌊 <b>Marine Weather</b><br><i>No data available.</i>";
-        return;
-      }
-
-      document.getElementById('marine-weather').innerHTML = `
-        🌊 <b>Marine Weather</b><br>
-        🌬 <b>Wind:</b> ${w.wind_speed_kn} kn ${w.wind_dir_txt} (${w.wind_dir}°)<br>
-        🌡 <b>Air Temp:</b> ${w.air_temperature} °C<br>
-        🌊 <b>Waves:</b> ${w.wave_height} m<br>
-        🧭 <b>Pressure:</b> ${w.air_pressure} hPa
-      `;
-    })
-    .catch(err => {
-      console.error("Failed to fetch marine weather:", err);
-      document.getElementById('marine-weather').innerHTML =
-        "🌊 <b>Marine Weather</b><br><i>Error loading data.</i>";
-    });
-}
-
-const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
-});
-
-
-const satellite = L.tileLayer(
-  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  {
-    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Earthstar Geographics'
-  }
-);
-
-const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-  attribution: '&copy; CartoDB',
-  subdomains: 'abcd'
-});
-
-const toner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
-  attribution: 'Map tiles by Stamen Design'
-});
-
-const openSeaMap = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
-  attribution: 'Map data © OpenSeaMap contributors',
-  transparent: true
-});
-
-const weatherOverlay = L.tileLayer('https://tiles.openseamap.org/weather/{z}/{x}/{y}.png', {
-  attribution: 'Weather © OpenSeaMap contributors'
-});
-
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '&copy; OpenStreetMap contributors'
-}).addTo(map);
-
-const tileLayers = {
-  osm: osm,
-  satellite: satellite,
-  dark: dark,
-  toner: toner,
-  opensea: L.layerGroup([osm, openSeaMap])  // ⬅️ Add OpenSeaMap as a layer group
-};
-
-const openSeaLayers = {
-  seamark: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
-    attribution: '© OpenSeaMap contributors',
-    transparent: true
-  }),
-  depth: L.tileLayer('https://tiles.openseamap.org/seabath/{z}/{x}/{y}.png', {
-    attribution: '© OpenSeaMap contributors',
-    transparent: true
-  }),
-  harbour: L.tileLayer('https://tiles.openseamap.org/harbour/{z}/{x}/{y}.png', {
-    attribution: '© OpenSeaMap contributors',
-    transparent: true
-  }),
-  light: L.tileLayer('https://tiles.openseamap.org/lighthouses/{z}/{x}/{y}.png', {
-    attribution: '© OpenSeaMap contributors',
-    transparent: true
-  }),
-  aerialway: L.tileLayer('https://tiles.openseamap.org/aerialway/{z}/{x}/{y}.png', {
-    attribution: '© OpenSeaMap contributors',
-    transparent: true
-  }),
-};
-
-function fetchMarineWeather(lat, lon) {
-  const url = `/api/marine_weather?lat=${lat}&lon=${lon}`;
-  fetch(url)
-    .then(response => response.json())
-    .then(data => {
-      console.log("Marine weather data:", data);
-      // process and display data here
-    })
-    .catch(error => {
-      console.error("Failed to fetch marine weather:", error);
-    });
-}
-
-function changeMapStyle(style) {
-  // Remove all tile layers
-  Object.values(tileLayers).forEach(layer => map.removeLayer(layer));
-  Object.values(openSeaLayers).forEach(layer => map.removeLayer(layer));
-
-  // Add the selected layer
-  if (style === 'opensea') {
-    tileLayers['osm'].addTo(map); // Base OSM
-    document.getElementById('opensea-options').style.display = 'inline-block';
-
-    // Add default layers
-    Object.keys(openSeaLayers).forEach(key => {
-      const checkbox = document.querySelector(`#opensea-options input[value=${key}]`);
-      if (!checkbox || checkbox.checked) openSeaLayers[key].addTo(map);
-    });
-  } else {
-    tileLayers[style].addTo(map);
-    document.getElementById('opensea-options').style.display = 'none';
-  }
-}
-
-function toggleOpenSeaLayer(layerKey) {
-  const layer = openSeaLayers[layerKey];
-  const checkbox = event.target;
-  if (checkbox.checked) {
-    layer.addTo(map);
-  } else {
-    map.removeLayer(layer);
-  }
-}
-
-
-
-let macAddress = '08:3A:8D:DE:E5:10';  // Default MAC address for testing, replace with actual MAC when available
-
-let previousCoords = null;
-let previousTimestamp = null;
-
-function haversineDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371e3; // metres
-  const toRad = x => x * Math.PI / 180;
-
-  const φ1 = toRad(lat1);
-  const φ2 = toRad(lat2);
-  const Δφ = toRad(lat2 - lat1);
-  const Δλ = toRad(lon2 - lon1);
-
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-
-  const d = R * c;
-  return d;
-}
-
-
-function colorBySpeed() {
-  if (liveCoords.length < 2) return alert("Not enough data");
-
-  const segments = [];
-
-  for (let i = 1; i < liveCoords.length; i++) {
-    const prev = liveCoords[i - 1];
-    const curr = liveCoords[i];
-
-    const distance = haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng); // in meters
-    const timeDelta = (curr.timestamp - prev.timestamp) / 1000; // in seconds
-
-    const speed = (distance / timeDelta) * 3.6; // in km/h
-    let color = 'gray';
-
-    if (speed < 5) color = 'blue';
-    else if (speed < 15) color = 'green';
-    else if (speed < 30) color = 'orange';
-    else color = 'red';
-
-    segments.push({
-      coords: [[prev.lat, prev.lng], [curr.lat, curr.lng]],
-      color
-    });
-  }
-
-  // Clear existing route
-  if (routeLine) {
-    map.removeLayer(routeLine);
-    routeLine = null;
-  }
-  if (startMarker) map.removeLayer(startMarker);
-  if (endMarker) map.removeLayer(endMarker);
-
-  // Draw colored segments
-  for (const segment of segments) {
-    L.polyline(segment.coords, { color: segment.color }).addTo(map);
-  }
-
-  // Optionally re-add start and end markers
-  const start = liveCoords[0];
-  const end = liveCoords[liveCoords.length - 1];
-  startMarker = L.marker([start.lat, start.lng]).addTo(map).bindPopup("🚩 Start");
-  endMarker = L.marker([end.lat, end.lng]).addTo(map).bindPopup("🏁 End");
-}
-
-function getSpeedColor(speed) {
-  if (speed < 10) return 'blue';
-  if (speed < 30) return 'limegreen';
-  if (speed < 60) return 'orange';
-  return 'red';
-}
-
-let heatVisible = false;
-
-function toggleHeatmap() {
-  if (!liveCoords.length) {
-    alert("No GPS data to show heatmap.");
-    return;
-  }
-
-  if (!heatVisible) {
-    const heatData = liveCoords.map(p => [p.lat || p[0], p.lng || p[1], 1]);  // [lat, lng, intensity]
-    heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 17 });
-    heatLayer.addTo(map);
-    heatVisible = true;
-    console.log("Heatmap enabled");
-  } else {
-    if (heatLayer) {
-      map.removeLayer(heatLayer);
-      heatLayer = null;
-    }
-    heatVisible = false;
-    console.log("Heatmap disabled");
-  }
-}
-
-
-function fetchLiveRoute(mac) {
-  if (!mac || mac.trim() === '') {
-    console.log("Error: MAC address is missing!");
-    return;
-  }
-
-  console.log("Function: fetchLiveRoute() called");
-
-  // Update MAC label on the UI
-  const macLabelEl = document.getElementById("mac-value");
-  if (macLabelEl) {
-    macLabelEl.textContent = mac;
-    document.getElementById("mac-label").style.display = "block";  // Show the label
-  }
-
-  fetch(`/gps/live?mac=${encodeURIComponent(mac)}`)
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      if (data.error) {
-        console.warn("Server returned an error:", data.error);
-        return;
-      }
-
-      const lat = data.latitude;
-      const lng = data.longitude;
-      const now = Date.now();
-
-      if (typeof lat !== 'number' || typeof lng !== 'number') {
-        console.warn("Invalid GPS data received:", data);
-        return;
-      }
-
-      console.log(`Live GPS position from server: lat=${lat}, lng=${lng}`);
-
-      // Update live UI panel
-      const latEl = document.getElementById("lat-display");
-      const lngEl = document.getElementById("lng-display");
-      if (latEl) latEl.textContent = lat.toFixed(6);
-      if (lngEl) lngEl.textContent = lng.toFixed(6);
-
-      // Blink GPS probe
-      const probeEl = document.getElementById("gps-probe");
-      if (probeEl) {
-        probeEl.classList.remove("gps-on");
-        void probeEl.offsetWidth; // trigger reflow
-        probeEl.classList.add("gps-on");
-      }
-
-      // Avoid duplicates
-      if (previousCoords && previousCoords.lat === lat && previousCoords.lng === lng) {
-        console.log("Received same coordinates. Skipping.");
-        return;
-      }
-
-      // Calculate speed
-      const speedEl = document.getElementById("speed-display");
-      if (previousCoords && previousTimestamp) {
-        const distance = haversineDistance(previousCoords.lat, previousCoords.lng, lat, lng); // meters
-        const timeDelta = (now - previousTimestamp) / 1000; // seconds
-        const speedKph = (distance / timeDelta) * 3.6;
-        if (speedEl) speedEl.textContent = speedKph.toFixed(2);
-        console.log(`Speed: ${speedKph.toFixed(2)} km/h`);
-      }
-
-      // Save for next update
-      previousCoords = { lat, lng };
-      previousTimestamp = now;
-
-      // Push to live track array
-      liveCoords.push({
-        0: lat,  // Leaflet polyline format
-        1: lng,
-        lat: lat,
-        lng: lng,
-        timestamp: now
-      });
-
-      // Draw the updated route on the map
-      drawRoute(liveCoords.map(c => [c.lat, c.lng]), 'blue');
-    })
-    .catch(err => {
-      console.error("Error fetching GPS coordinates:", err);
-      const probeEl = document.getElementById("gps-probe");
-      if (probeEl) {
-        probeEl.classList.remove("gps-on");
-        probeEl.classList.add("gps-off");
-      }
-
-      // Optional: toast or alert
-      // alert("🚨 Unable to fetch GPS location.");
-    });
-}
-
-function toggleAutoUpdate() {
-  autoUpdate = !autoUpdate;
-  const toggleBtn = document.getElementById('toggleAuto');
-  const refreshBtn = document.getElementById('manualRefresh');
-
-  if (autoUpdate) {
-    toggleBtn.textContent = "Auto-Update: ON";
-    refreshBtn.style.display = "none";
-    if (macAddress) {  // Ensure valid MAC address is present before starting the interval
-      intervalId = setInterval(() => fetchLiveRoute(macAddress), 2000);
-    } else {
-      console.log("Error: No MAC address available for auto-update");
-    }
-  } else {
-    toggleBtn.textContent = "Auto-Update: OFF";
-    refreshBtn.style.display = "inline-block";
-    clearInterval(intervalId);
-  }
-}
-
-// Call fetchLiveRoute only if MAC address is valid
-if (macAddress) {
-  fetchLiveRoute(macAddress);  // Initially fetch live route with valid MAC
-} else {
-  console.log("Error: No MAC address to fetch data");
-}
-
-intervalId = setInterval(() => {
-  if (macAddress) {  // Check for a valid MAC address before making the request
-    fetchLiveRoute(macAddress);
-  }
-}, 5000);
-
-// Retry function in case of failure
-function retryFetch(mac) {
-  let retries = 3;
-  let attempt = 0;
-
-  const retryInterval = setInterval(() => {
-    if (attempt >= retries) {
-      console.log("Max retry attempts reached.");
-      clearInterval(retryInterval);  // Stop retries after max attempts
-      return;
-    }
-    attempt++;
-    console.log(`Retrying fetch... Attempt ${attempt}`);
-    fetchLiveRoute(mac);  // Attempt to fetch again
-  }, 5000);  // Retry every 5 seconds
-}
-
-// Function to draw the route on the map
-function drawRoute(coords, color) {
-  console.log("Function: drawRoute() called with coords:", coords);  // Debugging entry point
-  if (routeLine) map.removeLayer(routeLine);
-  if (startMarker) map.removeLayer(startMarker);
-  if (endMarker) map.removeLayer(endMarker);
-
-  routeLine = L.polyline(coords, { color: color || 'blue' }).addTo(map);
-  startMarker = L.marker(coords[0], { title: 'Start' }).addTo(map).bindPopup('🚩 Start');
-  endMarker = L.marker(coords[coords.length - 1], { title: 'End' }).addTo(map).bindPopup('🏁 End');
-  map.fitBounds(routeLine.getBounds());
-}
-
-// Toggle auto-update for the live route
-function toggleAutoUpdate() {
-  autoUpdate = !autoUpdate;
-  const toggleBtn = document.getElementById('toggleAuto');
-  const refreshBtn = document.getElementById('manualRefresh');
-
-  console.log("Function: toggleAutoUpdate() called");  // Debugging entry point
-
-  if (autoUpdate) {
-    toggleBtn.textContent = "Auto-Update: ON";
-    refreshBtn.style.display = "none";
-    intervalId = setInterval(fetchLiveRoute, 5000);
-  } else {
-    toggleBtn.textContent = "Auto-Update: OFF";
-    refreshBtn.style.display = "inline-block";
-    clearInterval(intervalId);
-  }
-}
-
-// Save current route
-function saveRoute() {
-  console.log("Function: saveRoute() called");  // Debugging entry point
-  if (!liveCoords.length) return alert("Nothing to save.");
-  const name = prompt("Enter name to save this route:");
-  if (!name.match(/^[a-zA-Z0-9_-]+$/)) return alert("Invalid name!");
-  fetch('/routes/save', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name, coords: liveCoords.map(c => ({ lat: c[0], lng: c[1] })) })
-  }).then(() => {
-    alert("Route saved!");
-    fetchSavedRoutes();
-  });
-}
-
-// Load saved route
-function loadRoute() {
-  console.log("Function: loadRoute() called");  // Debugging entry point
-  const name = document.getElementById('savedRoutes').value;
-  if (!name) return;
-  fetch(`/routes/load/${name}`)
-    .then(res => res.json())
-    .then(data => {
-      const loaded = data.map(p => [p.lat, p.lng]);
-      drawRoute(loaded, 'green');
-    });
-}
-
-// Delete saved route
-function deleteRoute() {
-  console.log("Function: deleteRoute() called");  // Debugging entry point
-  const name = document.getElementById('savedRoutes').value;
-  if (!name) return;
-  if (!confirm(`Delete route "${name}"?`)) return;
-  fetch(`/routes/delete/${name}`, { method: 'DELETE' })
-    .then(() => {
-      alert("Route deleted!");
-      fetchSavedRoutes();
-    });
-}
-
-// Play route (live or saved)
-function playRoute() {
-  console.log("Function: playRoute() called");  // Debugging entry point
-  const source = document.getElementById('playSelect').value;
-
-  if (animMarker) map.removeLayer(animMarker);
-
-  if (source === 'live') {
-    if (!liveCoords.length) {
-      alert("No live route data available.");
-      return;
-    }
-    animateRoute(liveCoords);
-  } else {
-    const name = document.getElementById('savedRoutes').value;
-    if (!name) return alert("Select a saved route to play.");
-    fetch(`/routes/load/${name}`)
-      .then(res => res.json())
-      .then(data => {
-        const coords = data.map(p => [p.lat, p.lng]);
-        animateRoute(coords);
-      });
-  }
-}
-
-// Animate route on the map
-function animateRoute(coords) {
-  console.log("Function: animateRoute() called");  // Debugging entry point
-  if (!coords.length) return;
-  let i = 0;
-  animMarker = L.marker(coords[0]).addTo(map);
-  const interval = setInterval(() => {
-    if (i >= coords.length) return clearInterval(interval);
-    animMarker.setLatLng(coords[i++]);
-  }, 300);
-}
-
-// Clear all routes and markers from the map
-function clearRoute() {
-  console.log("Function: clearRoute() called");  // Debugging entry point
-  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
-  if (animMarker) { map.removeLayer(animMarker); animMarker = null; }
-  if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-  if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
-}
-
-function toggleAnalysis() {
-  const widget = document.getElementById('analysis-widget');
-  if (widget.style.display === 'none') {
-    widget.style.display = 'block';
-  } else {
-    widget.style.display = 'none';
-  }
-}
-
-// Fetch saved routes from the server
-function fetchSavedRoutes() {
-  console.log("Function: fetchSavedRoutes() called");  // Debugging entry point
-  fetch('/routes')
-    .then(res => res.json())
-    .then(routes => {
-      const dropdown = document.getElementById('savedRoutes');
-      dropdown.innerHTML = '<option value="">📁 Load Saved Route</option>';
-      routes.forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        dropdown.appendChild(opt);
-      });
-    });
-}
-
-// Function to send GPS data to the server via POST
-function sendGpsData(lat, lng, mac) {
-  console.log(`Function: sendGpsData() called with lat: ${lat}, lng: ${lng}, mac: ${mac}`);  // Debugging entry point
-
-  // Get the value of the logging toggle checkbox
-  const loggingEnabled = document.getElementById("loggingToggle").checked;  // true if checked, false if unchecked
-
-  // Prepare the JSON payload
-  const jsonPayload = {
-    latitude: lat,
-    longitude: lng,
-    mac: mac,
-    logging_enabled: loggingEnabled  // Include the logging flag in the request payload
+  // ===== MAP INITIALIZATION =====
+  let map = L.map('map').setView([37.5, 22.37], 16);
+  let routeLine, liveCoords=[], animMarker, startMarker, endMarker, intervalId, heatLayer;
+  let autoUpdate=true, macAddress='08:3A:8D:DE:E5:10';
+  let previousCoords=null, previousTimestamp=null, heatVisible=false;
+
+  // ===== TILE LAYERS =====
+  const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' });
+  const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri' });
+  const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CartoDB', subdomains:'abcd' });
+  const toner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', { attribution:'Stamen' });
+  osm.addTo(map);
+
+  const openSeaLayers = {
+    seamark: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', { attribution:'© OpenSeaMap', transparent:true }),
+    depth: L.tileLayer('https://tiles.openseamap.org/seabath/{z}/{x}/{y}.png',{ attribution:'© OpenSeaMap', transparent:true }),
+    harbour: L.tileLayer('https://tiles.openseamap.org/harbour/{z}/{x}/{y}.png',{ attribution:'© OpenSeaMap', transparent:true }),
+    light: L.tileLayer('https://tiles.openseamap.org/lighthouses/{z}/{x}/{y}.png',{ attribution:'© OpenSeaMap', transparent:true }),
+    aerialway: L.tileLayer('https://tiles.openseamap.org/aerialway/{z}/{x}/{y}.png',{ attribution:'© OpenSeaMap', transparent:true }),
   };
 
-  // Log the payload before sending
-  console.log(`Sending data: ${JSON.stringify(jsonPayload)}`);
+  const tileLayers = { osm, satellite, dark, toner, opensea:L.layerGroup([osm]) };
 
-  // Use fetch to send the data as JSON
-  fetch('/gps', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'  // Set content type to JSON
-    },
-    body: JSON.stringify(jsonPayload)  // Convert the object to JSON
-  })
-  .then(response => response.json())  // Expect a JSON response from the server
-  .then(data => {
-    console.log("Data sent successfully:", data);  // Log the server response
-  })
-  .catch(error => {
-    console.error("Error sending GPS data:", error);  // Log any errors
-  });
-}
+  // ===== MAP STYLE CONTROL =====
+  function changeMapStyle(style){
+    Object.values(tileLayers).forEach(l=>map.removeLayer(l));
+    Object.values(openSeaLayers).forEach(l=>map.removeLayer(l));
 
-function detectIdleStops() {
-  console.log("Function: detectIdleStops() called");
-
-  if (liveCoords.length < 2) {
-    alert("Not enough data to detect idle stops.");
-    return;
+    if(style==='opensea'){
+      tileLayers.osm.addTo(map);
+      document.getElementById('opensea-options').style.display='inline-block';
+      Object.keys(openSeaLayers).forEach(k=>{
+        const cb=document.querySelector(`#opensea-options input[value=${k}]`);
+        if(cb && cb.checked) openSeaLayers[k].addTo(map);
+      });
+    }else document.getElementById('opensea-options').style.display='none', tileLayers[style].addTo(map);
   }
 
-  const idleStops = [];
-
-  for (let i = 1; i < liveCoords.length; i++) {
-    const prev = liveCoords[i - 1];
-    const curr = liveCoords[i];
-
-    const distance = haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
-    const timeDelta = (curr.timestamp - prev.timestamp) / 1000;
-    const speed = (distance / timeDelta) * 3.6;
-
-    if (speed < 2.0) {  // Consider < 2 km/h as idle
-      idleStops.push(curr);
-    }
+  function toggleOpenSeaLayer(checkbox, layerKey){
+    checkbox.checked ? openSeaLayers[layerKey].addTo(map) : map.removeLayer(openSeaLayers[layerKey]);
   }
 
-  if (idleStops.length === 0) {
-    alert("No idle stops detected.");
-    return;
+  // ===== GPS / ROUTE UTILS =====
+  function haversineDistance(lat1, lon1, lat2, lon2){
+    const R=6371e3, toRad=x=>x*Math.PI/180;
+    const φ1=toRad(lat1), φ2=toRad(lat2);
+    const Δφ=toRad(lat2-lat1), Δλ=toRad(lon2-lon1);
+    const a=Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+    return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
   }
 
-  // Show markers for idle stops
-  idleStops.forEach(point => {
-    L.circleMarker([point.lat, point.lng], {
-      color: 'red',
-      radius: 6
-    }).addTo(map).bindPopup("🛑 Idle stop");
-  });
-
-  alert(`Detected ${idleStops.length} idle stops.`);
-}
-
-// Show speed graph
-function showSpeedGraph() {
-  console.log("Function: showSpeedGraph() called");
-  if (liveCoords.length < 2) return alert("Not enough data");
-
-  const speeds = [];
-  const labels = [];
-
-  for (let i = 1; i < liveCoords.length; i++) {
-    const prev = liveCoords[i - 1];
-    const curr = liveCoords[i];
-
-    const distance = haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng); // meters
-    const timeDelta = (curr.timestamp - prev.timestamp) / 1000; // seconds
-
-    const speed = (distance / timeDelta) * 3.6; // km/h
-    speeds.push(speed.toFixed(2));
-    labels.push(i); // just use point index as label
+  function drawRoute(coords, color='blue'){
+    if(routeLine) map.removeLayer(routeLine);
+    if(startMarker) map.removeLayer(startMarker);
+    if(endMarker) map.removeLayer(endMarker);
+    routeLine=L.polyline(coords,{color}).addTo(map);
+    startMarker=L.marker(coords[0]).addTo(map).bindPopup('🚩 Start');
+    endMarker=L.marker(coords[coords.length-1]).addTo(map).bindPopup('🏁 End');
+    map.fitBounds(routeLine.getBounds());
   }
 
-  const ctx = document.createElement('canvas');
-  ctx.style.width = "600px";
-  ctx.style.height = "300px";
-  ctx.style.display = "block";
-  ctx.style.margin = "30px auto";
-  document.body.appendChild(ctx);
+  // ===== LIVE GPS FETCH =====
+  function fetchLiveRoute(mac=macAddress){
+    if(!mac) return console.log("No MAC provided");
+    fetch(`/gps/live?mac=${encodeURIComponent(mac)}`)
+      .then(r=>r.json())
+      .then(data=>{
+        if(data.error) return console.warn(data.error);
+        const {latitude:lat, longitude:lng} = data;
+        const now=Date.now();
+        if(typeof lat!=='number' || typeof lng!=='number') return;
 
-  new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Speed (km/h)',
-        data: speeds,
-        borderColor: 'orange',
-        fill: false,
-        tension: 0.3
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: { display: true }
-      },
-      scales: {
-        y: { beginAtZero: true }
-      }
-    }
-  });
-}
+        document.getElementById("lat-display").textContent=lat.toFixed(6);
+        document.getElementById("lng-display").textContent=lng.toFixed(6);
 
-function loadHistoricalRoute() {
-  const mac = document.getElementById('macInput').value.trim();
-  const date = document.getElementById('dateInput').value;
+        const probeEl=document.getElementById("gps-probe");
+        probeEl.classList.remove("gps-on"); void probeEl.offsetWidth; probeEl.classList.add("gps-on");
 
-  if (!mac) {
-    alert("Please enter a MAC address.");
-    return;
+        if(previousCoords && previousCoords.lat===lat && previousCoords.lng===lng) return;
+
+        if(previousCoords && previousTimestamp){
+          const speedKph=(haversineDistance(previousCoords.lat, previousCoords.lng, lat, lng)/((now-previousTimestamp)/1000))*3.6;
+          document.getElementById("speed-display").textContent=speedKph.toFixed(2);
+        }
+
+        previousCoords={lat,lng}; previousTimestamp=now;
+        liveCoords.push({lat,lng,timestamp:now});
+        drawRoute(liveCoords.map(c=>[c.lat,c.lng]),'blue');
+      }).catch(err=>{
+        console.error(err);
+        const probeEl=document.getElementById("gps-probe");
+        probeEl.classList.remove("gps-on"); probeEl.classList.add("gps-off");
+      });
   }
 
-  const url = `/api/coords?mac=${encodeURIComponent(mac)}${date ? `&date=${date}` : ''}`;
-  console.log("Loading route from:", url);
+  // ===== AUTO UPDATE =====
+  function toggleAutoUpdate(){
+    autoUpdate=!autoUpdate;
+    const toggleBtn=document.getElementById('toggleAuto');
+    const refreshBtn=document.getElementById('manualRefresh');
+    toggleBtn.textContent=autoUpdate?"Auto-Update: ON":"Auto-Update: OFF";
+    refreshBtn.style.display=autoUpdate?'none':'inline-block';
+    clearInterval(intervalId);
+    if(autoUpdate && macAddress) intervalId=setInterval(()=>fetchLiveRoute(macAddress),5000);
+  }
+  intervalId=setInterval(()=>macAddress && fetchLiveRoute(macAddress),5000);
 
-  fetch(url)
-    .then(res => res.json())
-    .then(data => {
-      if (!Array.isArray(data) || data.length === 0) {
-        alert("No data found for this MAC/date.");
-        return;
-      }
+  // ===== LOGGING =====
+  function toggleLogging(){
+    const btn=document.getElementById('loggingToggle');
+    btn.classList.toggle('off');
+    btn.textContent=btn.classList.contains('off')?"Enable Logging: OFF":"Enable Logging: ON";
+  }
 
-      const latlngs = data.map(p => [p.lat, p.lng]);
-
-      // Clear previous route
-      if (routeLine) {
-        map.removeLayer(routeLine);
-        routeLine = null;
-      }
-      if (startMarker) map.removeLayer(startMarker);
-      if (endMarker) map.removeLayer(endMarker);
-
-      // Draw new route
-      routeLine = L.polyline(latlngs, { color: 'red' }).addTo(map);
-      startMarker = L.marker(latlngs[0]).addTo(map).bindPopup("🚩 Start");
-      endMarker = L.marker(latlngs[latlngs.length - 1]).addTo(map).bindPopup("🏁 End");
-      map.fitBounds(routeLine.getBounds());
-
-      // Save inputs for next load
-      localStorage.setItem("lastMac", mac);
-      if (date) localStorage.setItem("lastDate", date);
-    })
-    .catch(err => {
-      console.error("Error loading historical route:", err);
-      alert("Failed to load route.");
-    });
-}
-
-// Load last used MAC/date on page load
-window.addEventListener("DOMContentLoaded", () => {
-  const savedMac = localStorage.getItem("lastMac");
-  const savedDate = localStorage.getItem("lastDate");
-  if (savedMac) document.getElementById("macInput").value = savedMac;
-  if (savedDate) document.getElementById("dateInput").value = savedDate;
-});
-
-
-fetchSavedRoutes();
+  // ===== INITIALIZATION =====
+  fetchLiveRoute(macAddress);
+  fetchSavedRoutes();
 </script>
 {% endblock %}
