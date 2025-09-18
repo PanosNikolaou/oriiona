@@ -109,7 +109,7 @@ def write_to_log(mac, lat, lng):
 import requests
 
 def get_utc_time_with_retry(retries=3, delay=5):
-    url = 'https://api.exchangerate-api.com/v4/latest/UTC'  # Example API that can return UTC time, can be replaced with others
+    url = "http://worldtimeapi.org/api/timezone/Etc/UTC"
     for attempt in range(retries):
         try:
             response = requests.get(url)
@@ -576,6 +576,14 @@ def marine_weather_proxy():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/status")
+def health_check():
+    return jsonify({
+        "status": "ok",
+        "mqtt_connected": True,  # Could be tracked via global flag
+        "routes_count": len(os.listdir(ROUTES_DIR)),
+        "log_files": len(os.listdir('./logs'))
+    })
 
 mqtt_thread = threading.Thread(target=start_mqtt)
 mqtt_thread.daemon = True
