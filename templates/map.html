@@ -49,41 +49,50 @@
 
 /* --- Analysis Widget (matches Route Controls style) --- */
 #analysis-widget {
-  position: absolute; /* was fixed */
+  position: fixed; /* fixed as route widget */
   top: 120px;
   right: 40px;
   z-index: 2000;
-  background: rgba(34, 34, 34, 0.95);
+  width: 220px; /* same fixed width */
+  background-color: rgba(34, 34, 34, 0.95);
   color: white;
-  padding: 16px 20px; /* balanced padding */
+  padding: 10px;
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  min-width: 240px;
-  max-width: 280px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   display: none;
-
+  font-family: Arial, sans-serif;
+  cursor: default;
+  user-select: none;
   display: flex;
   flex-direction: column;
-  gap: 14px; /* space between buttons */
-  font-family: Arial, sans-serif;
+  gap: 10px;
+}
+
+#analysis-widget-header {
+  background-color: #222;
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: bold;
+  text-align: center;
+  border: 1px solid #555;
+  cursor: grab;
+  user-select: none;
 }
 
 #analysis-widget button {
-  width: 100%;              /* full width inside container */
-  padding: 12px 16px;       /* uniform padding */
-  border: none;
-  border-radius: 6px;
+  width: 100%;
   background-color: #444;
   color: white;
-  font-size: 15px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
-  box-sizing: border-box;  /* include padding inside width */
-  text-align: left;        /* align text left for better consistency */
+  font-size: 14px;
   transition: background-color 0.2s ease;
   display: flex;
-  align-items: center;     /* vertically center icon/text if any */
-  gap: 8px;                /* spacing between icon and text if used */
-  margin: 0;               /* Remove default margin so gap controls spacing */
+  align-items: center;
+  gap: 8px;
+  margin: 0;
 }
 
 #analysis-widget button:hover {
@@ -92,6 +101,32 @@
 
 #analysis-widget button:active {
   background-color: #222;
+}
+
+/* Wind arrow icon */
+.wind-arrow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  user-select: none;
+  pointer-events: none;
+  font-size: 28px !important;
+  text-shadow: 0 0 4px black;
+}
+
+/* Wind info panel */
+#wind-panel {
+  position: absolute;
+  top: 10px;
+  right: 40px;
+  background: rgba(34,34,34,0.85);
+  border-radius: 8px;
+  padding: 10px 15px;
+  color: white;
+  font-family: Arial, sans-serif;
+  z-index: 2100;
+  pointer-events: none;
 }
 
   #gps-panel {
@@ -258,6 +293,30 @@ body { position: relative; min-height: 100vh; }
   background-color: #c62828;
 }
 
+  /* Wind arrow style */
+  .wind-arrow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Wind info panel */
+  #wind-panel {
+    position: absolute;
+    top: 10px;
+    right: 40px;
+    background: rgba(34,34,34,0.85);
+    border-radius: 8px;
+    padding: 10px 15px;
+    color: white;
+    font-family: Arial, sans-serif;
+    z-index: 2100;
+    pointer-events: none;
+  }
+
 </style>
 
 <h2>Live GPS Route</h2>
@@ -290,6 +349,7 @@ body { position: relative; min-height: 100vh; }
 </div>
 
 <div id="map">  <!-- GPS Panel -->
+<div id="wind-panel" style="display:none;"></div>
 
   <div id="gps-panel">
     <div><strong>Latitude:</strong> <span id="lat-display">--</span></div>
@@ -314,7 +374,11 @@ body { position: relative; min-height: 100vh; }
   <button onclick="toggleHeatmap()">🔥 Toggle Heatmap</button>
   <button onclick="detectIdleStops()">🛑 Detect Idle</button>
   <button onclick="colorBySpeed()">🌈 Color by Speed</button>
+
+  <!-- New Wind Toggle Button -->
+  <button id="windToggleBtn" onclick="toggleWind()">🌬️ Toggle Wind</button>
 </div>
+
 
   <div id="mac-label">MAC: <span id="mac-value">N/A</span></div>
 
@@ -404,6 +468,25 @@ let recordedCoords = [];
 let speedLayerGroup = L.layerGroup().addTo(map);
 
 const activeOpenSeaLayers = {};  // keep track of which are active
+
+let windEnabled = true;  // default wind visualization enabled
+
+function toggleWind() {
+  windEnabled = !windEnabled;
+
+  const btn = document.getElementById('windToggleBtn');
+  if (windEnabled) {
+    btn.textContent = '🌬️ Disable Wind';
+    refreshWindData();    // update wind arrows immediately
+    map.on('moveend', refreshWindData);  // enable live updates
+    document.getElementById('wind-panel').style.display = 'block';
+  } else {
+    btn.textContent = '🌬️ Enable Wind';
+    map.off('moveend', refreshWindData); // stop updates
+    clearWindMarkers();                   // remove arrows
+    document.getElementById('wind-panel').style.display = 'none';
+  }
+}
 
 function fetchMarineWeather(lat, lon) {
   const url = `/api/marine_weather?lat=${lat}&lon=${lon}`;
@@ -1285,6 +1368,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const savedDate = localStorage.getItem("lastDate");
   if (savedMac) document.getElementById("macInput").value = savedMac;
   if (savedDate) document.getElementById("dateInput").value = savedDate;
+  document.getElementById('windToggleBtn').textContent = '🌬️ Disable Wind';
 });
 
 function makeWidgetDraggable(widgetId, handleId) {
@@ -1335,6 +1419,135 @@ document.addEventListener("DOMContentLoaded", () => {
   makeWidgetDraggable("recording-widget", "recording-widget-header");
   makeWidgetDraggable("analysis-widget", "analysis-widget-header");
 });
+
+// Maintain markers for wind arrows
+let windMarkers = [];
+
+// Clear wind markers from the map
+function clearWindMarkers() {
+  windMarkers.forEach(m => map.removeLayer(m));
+  windMarkers = [];
+}
+
+// Generate grid points over map bounds with given spacing
+function generateGridPoints(sw, ne, step = 0.3) {
+  const points = [];
+  for (let lat = sw.lat; lat <= ne.lat; lat += step) {
+    for (let lng = sw.lng; lng <= ne.lng; lng += step) {
+      points.push({ lat, lng });
+    }
+  }
+  return points;
+}
+
+// Fetch Open-Meteo wind data for one point
+async function fetchWindForPoint(lat, lng) {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('API error');
+    const data = await resp.json();
+    if (data.current_weather) {
+      return {
+        lat,
+        lng,
+        speed: data.current_weather.windspeed,
+        direction: data.current_weather.winddirection
+      };
+    }
+  } catch (e) {
+    console.warn(`Failed to fetch wind data for ${lat},${lng}`, e);
+  }
+  return null;
+}
+
+// Fetch wind data for all points grid with concurrency control
+async function fetchWindGrid(points) {
+  const results = [];
+  const concurrency = 5;
+  for (let i = 0; i < points.length; i += concurrency) {
+    const batch = points.slice(i, i + concurrency);
+    const batchResults = await Promise.all(batch.map(p => fetchWindForPoint(p.lat, p.lng)));
+    results.push(...batchResults.filter(r => r !== null));
+  }
+  return results;
+}
+
+// Map wind speed to arrow color
+function getWindColor(speed) {
+  if (speed < 2) return 'lightblue';
+  if (speed < 5) return 'cyan';
+  if (speed < 8) return 'lime';
+  if (speed < 12) return 'orange';
+  return 'red';
+}
+
+// Display wind arrows on the map
+function displayWindGrid(windData) {
+  clearWindMarkers();
+  windData.forEach(({ lat, lng, speed, direction }) => {
+    const icon = L.divIcon({
+      className: 'wind-arrow',
+      html: `<div style="transform: rotate(${direction}deg);
+                         font-size: 28px;
+                         text-shadow: 0 0 6px rgba(0,0,0,0.7);
+                         color: ${getWindColor(speed)};">&#8593;</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+    const marker = L.marker([lat, lng], { icon }).addTo(map);
+    windMarkers.push(marker);
+  });
+}
+
+// Update the wind info panel to show average speed and direction
+function updateWindPanel(speed, direction) {
+  const panel = document.getElementById('wind-panel');
+  panel.style.display = 'block';
+  panel.innerHTML = `<b>Average Wind</b><br>Speed: ${speed.toFixed(2)} m/s<br>Direction: ${direction.toFixed(0)}&deg;`;
+}
+
+// Fetch and update wind data for current viewport
+async function refreshWindData() {
+  const bounds = map.getBounds();
+console.log("Map bounds SW", bounds.getSouthWest(), "NE", bounds.getNorthEast());
+// Reduce step size for denser grid
+const points = generateGridPoints(bounds.getSouthWest(), bounds.getNorthEast(), 0.1);
+console.log("Grid points count:", points.length);
+  const windData = await fetchWindGrid(points);
+
+  if (!windData.length) {
+    console.warn("No wind data received");
+    document.getElementById('wind-panel').style.display = 'none';
+    clearWindMarkers();
+    return;
+  }
+
+  displayWindGrid(windData);
+
+  // Calculate average wind vector
+  let avgSpeed = 0, avgX = 0, avgY = 0;
+  windData.forEach(({ speed, direction }) => {
+    avgSpeed += speed;
+    avgX += speed * Math.cos(direction * Math.PI / 180);
+    avgY += speed * Math.sin(direction * Math.PI / 180);
+  });
+  avgSpeed /= windData.length;
+  const avgDir = (Math.atan2(avgY, avgX) * 180 / Math.PI + 360) % 360;
+
+  updateWindPanel(avgSpeed, avgDir);
+}
+
+// Call once initially, and on every map moveend
+refreshWindData();
+let windRefreshTimeout = null;
+map.on('moveend', () => {
+  if (windRefreshTimeout) clearTimeout(windRefreshTimeout);
+  windRefreshTimeout = setTimeout(refreshWindData, 1000); // 1 second debounce delay
+});
+
+// In fetchWindGrid(points), reduce concurrency:
+const concurrency = 3;  // Reduce further if needed
 
 
 fetchSavedRoutes();
