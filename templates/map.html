@@ -2,375 +2,1554 @@
 {% block title %}Live Map{% endblock %}
 
 {% block content %}
+
 <style>
-    /* General Top Panel */
-    .top-panel {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      align-items: center;
-      background-color: #333;
-      color: white;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
+  .top-panel {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    background-color: #333;
+    color: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    flex-wrap: wrap;
+  }
 
-    .top-panel button,
-    .top-panel select {
-      background-color: #4CAF50;
-      color: white;
-      padding: 10px 15px;
-      margin: 5px 10px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background-color 0.3s ease;
-    }
+  .top-panel button, .top-panel select {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px 15px;
+    margin: 5px 10px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+  }
 
-    .top-panel button:hover,
-    .top-panel select:hover { background-color: #45a049; }
+  .top-panel button:hover, .top-panel select:hover {
+    background-color: #45a049;
+  }
 
-    /* Specific button overrides */
-    #manualRefresh { background-color: #2196F3; }
-    #manualRefresh:hover { background-color: #1976D2; }
-    #loggingToggle.off { background-color: #f44336; }
-    #loggingToggle.off:hover { background-color: #45a049; }
+  #toggleAuto { background-color: #4CAF50; }
+  #toggleAuto:hover { background-color: #45a049; }
+  #manualRefresh { background-color: #2196F3; }
+  #manualRefresh:hover { background-color: #1976D2; }
+  #loggingToggle { background-color: #4CAF50; }
+  #loggingToggle:hover { background-color: #e53935; }
+  #loggingToggle.off { background-color: #f44336; }
+  #loggingToggle.off:hover { background-color: #45a049; }
 
-    /* Map styling */
-    #map { height: 80vh; width: 100%; }
+  #map {
+    height: 80vh;
+    width: 100%;
+  }
 
-    /* GPS Panel */
-    #gps-panel {
-      position: absolute;
-      top: 10px;
-      left: 50px;
-      width: 200px;
-      background: rgba(255,255,255,0.9);
-      padding: 10px 14px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-family: monospace;
-      font-size: 14px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      z-index: 999;
-    }
+/* --- Analysis Widget (matches Route Controls style) --- */
+#analysis-widget {
+  position: fixed; /* fixed as route widget */
+  top: 120px;
+  right: 40px;
+  z-index: 2000;
+  width: 220px; /* same fixed width */
+  background-color: rgba(34, 34, 34, 0.95);
+  color: white;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  display: none;
+  font-family: Arial, sans-serif;
+  cursor: default;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-    #gps-probe { font-size: 18px; transition: color 0.3s; }
-    .gps-on { color: limegreen; animation: blink 0.6s step-start infinite; }
-    .gps-off { color: gray; }
-    @keyframes blink { 50% { color: transparent; } }
+#analysis-widget-header {
+  background-color: #222;
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: bold;
+  text-align: center;
+  border: 1px solid #555;
+  cursor: grab;
+  user-select: none;
+}
 
-    /* Controls */
-    #controls {
-      position: absolute;
-      top: 100px;
-      left: 20px;
-      z-index: 999;
-      background-color: rgba(255,255,255,0.92);
-      padding: 12px 16px;
-      border-radius: 8px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: stretch;
-      font-family: Arial, sans-serif;
-    }
+#analysis-widget button {
+  width: 100%;
+  background-color: #444;
+  color: white;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
 
-    #controls input, #controls button {
-      width: 100%;
-      padding: 6-12px;
-      border-radius: 4px;
-      font-size: 14px;
-      box-sizing: border-box;
-    }
+#analysis-widget button:hover {
+  background-color: #555;
+}
 
-    #controls button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
+#analysis-widget button:active {
+  background-color: #222;
+}
 
-    #controls button:hover { background-color: #388e3c; }
+/* Wind arrow icon */
+.wind-arrow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+  user-select: none;
+  pointer-events: none;
+  font-size: 28px !important;
+  text-shadow: 0 0 4px black;
+}
 
-    /* Analysis Widget */
-    #analysis-widget {
-      position: absolute;
-      top: 20px;
-      right: 220px;
-      width: 300px;
-      background-color: #333;
-      color: white;
-      border-radius: 8px;
-      padding: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      z-index: 998;
-      display: none;
-    }
-    #analysis-widget h4 { text-align: center; margin-bottom: 10px; font-size: 20px; color: #ffcc00; }
-    #analysis-widget button { background-color: #2196F3; }
-    #analysis-widget button:hover { background-color: #1976D2; }
+/* Wind info panel */
+#wind-panel {
+  position: absolute;
+  top: 10px;
+  right: 40px;
+  background: rgba(34,34,34,0.85);
+  border-radius: 8px;
+  padding: 10px 15px;
+  color: white;
+  font-family: Arial, sans-serif;
+  z-index: 2100;
+  pointer-events: none;
+}
 
-    #mac-label {
-      position: absolute;
-      top: 12px;
-      right: 20px;
-      background-color: rgba(31,31,31,0.9);
-      color: #80ffd3;
-      padding: 6px 12px;
-      font-family: 'Courier New', monospace;
-      font-size: 13px;
-      border: 1px solid #80ffd3;
-      border-radius: 4px;
-      z-index: 999;
-      display: none;
-    }
+  #gps-panel {
+    position: relative;
+    top: 10px;         /* distance from top of page, adjust as needed */
+    left: 50px;        /* distance from left edge */
+    width: 200px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 14px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 14px;
+    color: #000;
+    z-index: 999;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  }
+
+  #gps-probe {
+    font-size: 18px;
+    transition: color 0.3s;
+  }
+
+  .gps-on {
+    color: limegreen;
+    animation: blink 0.6s step-start infinite;
+  }
+
+  .gps-off {
+    color: gray;
+  }
+
+  #mapStyle {
+    background-color: #222;
+    color: white;
+    padding: 10px;
+    border: 1px solid #555;
+    border-radius: 5px;
+    font-size: 14px;
+  }
+
+
+  @keyframes blink {
+    50% { color: transparent; }
+  }
+
+  #mac-label {
+    position: absolute;
+    top: 12px;
+    right: 20px;
+    margin-top: 10px;
+    margin-left: 30px;
+    background-color: rgba(31, 31, 31, 0.9);
+    color: #80ffd3;
+    padding: 6px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    border: 1px solid #80ffd3;
+    border-radius: 4px;
+    z-index: 999;
+    display: none;
+  }
+
+#controls {
+  position: absolute;
+  margin-top: 60px;
+  margin-left: 30px;
+  z-index: 999;
+  background-color: rgba(255, 255, 255, 0.92); /* Semi-transparent white */
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;  /* Stack children vertically */
+  gap: 10px;               /* Space between stacked elements */
+  align-items: stretch;    /* Make inputs and button full width */
+  font-family: Arial, sans-serif;
+}
+
+#controls input[type="text"],
+#controls input[type="date"],
+#controls button {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+
+#controls input[type="text"],
+#controls input[type="date"] {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+#controls button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+#controls button:hover {
+  background-color: #388e3c;
+}
+
+body { position: relative; min-height: 100vh; }
+#recording-widget {
+  position: fixed;
+  top: 120px;
+  right: 40px;
+  z-index: 2000;
+  background-color: rgba(34, 34, 34, 0.95);
+  color: white;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 220px;
+  cursor: move;
+}
+
+#recording-widget-header {
+  background-color: #222;
+  padding: 8px;
+  font-weight: bold;
+  border-radius: 6px;
+  text-align: center;
+  cursor: grab;
+  user-select: none;
+  border: 1px solid #555;
+}
+
+#recording-widget button,
+#recording-widget select {
+  background-color: #444;
+  color: white;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+#recording-widget button:hover,
+#recording-widget select:hover {
+  background-color: #555;
+}
+
+#recording-widget #recordToggle {
+  background-color: #e53935;
+}
+#recording-widget #recordToggle:hover {
+  background-color: #c62828;
+}
+
+  /* Wind arrow style */
+  .wind-arrow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Wind info panel */
+  #wind-panel {
+    position: absolute;
+    top: 10px;
+    right: 40px;
+    background: rgba(34,34,34,0.85);
+    border-radius: 8px;
+    padding: 10px 15px;
+    color: white;
+    font-family: Arial, sans-serif;
+    z-index: 2100;
+    pointer-events: none;
+  }
 
 </style>
 
 <h2>Live GPS Route</h2>
 
-<!-- Top Panel Controls -->
 <div class="top-panel">
-    <button onclick="saveRoute()">💾 Save Route</button>
-    <select id="savedRoutes" onchange="loadRoute()">
-        <option value="">📁 Load Saved Route</option>
-    </select>
-    <button onclick="deleteRoute()">🗑️ Delete Route</button>
-    <select id="playSelect">
-        <option value="live">▶️ Play Live Route</option>
-        <option value="saved">▶️ Play Saved Route</option>
-    </select>
-    <button onclick="playRoute()">▶️ Play</button>
-    <button onclick="clearRoute()">🧹 Clear Map</button>
-    <button id="toggleAuto" onclick="toggleAutoUpdate()">Auto-Update: ON</button>
-    <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
-    <button id="loggingToggle" onclick="toggleLogging()">Enable Logging: ON</button>
-    <button onclick="toggleAnalysis()">📊 Toggle Analysis</button>
-    <select id="mapStyle" onchange="changeMapStyle(this.value)">
-        <option value="osm">🗺️ OSM</option>
-        <option value="satellite">🛰️ Satellite</option>
-        <option value="dark">🌙 Dark</option>
-        <option value="toner">🖤 Toner</option>
-        <option value="opensea">⚓ OpenSeaMap</option>
-    </select>
-    <div id="opensea-options" style="display:none; margin-left:20px;">
-        <label><input type="checkbox" value="seamark" onchange="toggleOpenSeaLayer(this,'seamark')" checked>
-            Seamark</label>
-        <label><input type="checkbox" value="depth" onchange="toggleOpenSeaLayer(this,'depth')" checked> Depth Contours</label>
-        <label><input type="checkbox" value="harbour" onchange="toggleOpenSeaLayer(this,'harbour')" checked>
-            Harbours</label>
-        <label><input type="checkbox" value="light" onchange="toggleOpenSeaLayer(this,'light')" checked>
-            Lighthouses</label>
-        <label><input type="checkbox" value="aerialway" onchange="toggleOpenSeaLayer(this,'aerialway')">
-            Aerialways</label>
-    </div>
+  <button id="toggleAuto" onclick="toggleAutoUpdate()">Auto-Update: ON</button>
+  <button id="manualRefresh" onclick="fetchLiveRoute()" style="display:none;">🔄 Refresh Now</button>
+  <button id="loggingToggle" onclick="toggleLogging()">Enable Logging: ON</button>
+  <button onclick="toggleAnalysis()">📊 Toggle Analysis</button>
+  <select id="mapStyle" onchange="changeMapStyle(this.value)">
+    <option value="osm">🗺️ OSM</option>
+    <option value="satellite">🛰️ Satellite</option>
+    <option value="dark">🌙 Dark</option>
+    <option value="toner">🖤 Toner</option>
+    <option value="opensea">⚓ OpenSeaMap</option>
+  </select>
+  <div id="opensea-options" style="display:none; margin-left: 20px;">
+<label><input type="checkbox" value="seamark" onchange="toggleOpenSeaLayer('seamark')" checked> Seamarks</label>
+  <label><input type="checkbox" id="depthContoursBeta" onchange="toggleDepthContoursBeta()">Depth contours</label>
+<label><input type="checkbox" value="depth" onchange="toggleOpenSeaLayer('depth')" checked> Depth Contours</label>
+<label><input type="checkbox" value="harbour" onchange="toggleOpenSeaLayer('harbour')" checked> Harbours</label>
+<label><input type="checkbox" value="light" onchange="toggleOpenSeaLayer('light')" checked> Lighthouses</label>
+<label><input type="checkbox" value="aerialway" onchange="toggleOpenSeaLayer('aerialway')"> Aerialways</label>
+<label><input type="checkbox" id="marineProfileToggle" onchange="toggleMarineProfile()">Marine Profile (1:920.000)</label>
+<select id="depthInterval" onchange="changeDepthLayer(this.value)">
+  <option value="">-- Select Depth Layer --</option>
+  <option value="depth_10m">10m Contours</option>
+  <option value="depth_100m">100m Contours</option>
+</select>
 </div>
 
-<!-- Map Container -->
-<div id="map">
-    <!-- GPS Panel -->
-    <div id="gps-panel">
-        <div><strong>Latitude:</strong> <span id="lat-display">--</span></div>
-        <div><strong>Longitude:</strong> <span id="lng-display">--</span></div>
-        <div><strong>Speed:</strong> <span id="speed-display">--</span> km/h</div>
-        <div><strong>GPS Probe:</strong> <span id="gps-probe" class="gps-off">●</span></div>
-    </div>
+<div id="map">  <!-- GPS Panel -->
+<div id="wind-panel" style="display:none;"></div>
 
-    <!-- Historical Route Controls -->
-    <div id="controls">
-        <input type="text" id="macInput" placeholder="Enter MAC address"/>
-        <input type="date" id="dateInput"/>
-        <button onclick="loadHistoricalRoute()">📍 Load Historical Route</button>
-    </div>
+  <div id="gps-panel">
+    <div><strong>Latitude:</strong> <span id="lat-display">--</span></div>
+    <div><strong>Longitude:</strong> <span id="lng-display">--</span></div>
+    <div><strong>Speed:</strong> <span id="speed-display">--</span> km/h</div>
+    <div><strong>GPS Probe:</strong> <span id="gps-probe" class="gps-off">●</span></div>
+  </div>
 
-    <!-- Analysis Widget -->
-    <div id="analysis-widget">
-        <h4>🧮 Analysis</h4>
-        <button onclick="showElevation()">Elevation Profile</button>
-        <button onclick="showSpeedGraph()">Speed Graph</button>
-        <button onclick="toggleHeatmap()">Toggle Heatmap</button>
-        <button onclick="detectIdleStops()">Detect Idle</button>
-        <button onclick="colorBySpeed()">Color by Speed</button>
-    </div>
+  <div id="controls" style="position: absolute; top: 100px; left: 20px; z-index: 999;">
+    <input type="text" id="macInput" placeholder="Enter MAC address" />
+    <input type="date" id="dateInput" />
+    <button onclick="loadHistoricalRoute()">📍 Load Historical Route</button>
+  </div>
 
-    <div id="mac-label">MAC: <span id="mac-value">N/A</span></div>
+    <!-- MAC label -->
 
-    <!-- Speed Legend -->
-    <div style="position:absolute; top:100px; right:20px; z-index:1000; background:white; padding:8px; border-radius:6px;">
-        <strong>Speed Legend (km/h)</strong><br>
-        <span style="color:blue;">●</span> 0–10<br>
-        <span style="color:limegreen;">●</span> 10–30<br>
-        <span style="color:orange;">●</span> 30–60<br>
-        <span style="color:red;">●</span> 60+
-    </div>
+<!-- Widget markup (replace old analysis widget block) -->
+<div id="analysis-widget">
+  <div id="analysis-widget-header">🧮 Analysis</div>
+  <button onclick="showElevation()">⛰️ Elevation Profile</button>
+  <button onclick="showSpeedGraph()">📈 Speed Graph</button>
+  <button onclick="toggleHeatmap()">🔥 Toggle Heatmap</button>
+  <button onclick="detectIdleStops()">🛑 Detect Idle</button>
+  <button onclick="colorBySpeed()">🌈 Color by Speed</button>
 
-    <!-- Marine Weather -->
-    <div id="marine-weather"
-         style="position:absolute; bottom:20px; left:20px; background:rgba(0,0,0,0.7); color:white; padding:10px; border-radius:6px; font-size:14px; z-index:999;">
-        🌊 Marine weather data will appear here
-    </div>
+  <!-- New Wind Toggle Button -->
+  <button id="windToggleBtn" onclick="toggleWind()">🌬️ Toggle Wind</button>
 </div>
 
-<!-- Leaflet & Plugins -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <div id="mac-label">MAC: <span id="mac-value">N/A</span></div>
+
+
+  <div style="position:absolute; top:100px; right:20px; z-index:1000; background:white; padding:8px; border-radius:6px; color:black;">
+    <strong>Speed Legend (km/h)</strong><br>
+    <span style="color:blue;">●</span> 0–10<br>
+    <span style="color:limegreen;">●</span> 10–30<br>
+    <span style="color:orange;">●</span> 30–60<br>
+    <span style="color:red;">●</span> 60+
+  </div>
+
+  <div id="weather-panel" style="
+  position:absolute;
+  bottom:20px;
+  left:20px;
+  background:rgba(0,0,0,0.7);
+  color:white;
+  padding:10px;
+  border-radius:6px;
+  font-size:14px;
+  z-index:999;">
+  🌊 Marine weather data will appear here
+  </div>
+
+</div>
+
+</div>
+<div id="recording-widget">
+  <div id="recording-widget-header">📍 Route Controls</div>
+  <button id="recordToggle" onclick="toggleRecording()">⏺️ Start Recording</button>
+  <button onclick="saveRoute()">💾 Save Route</button>
+  <select id="savedRoutes" onchange="loadRoute()">
+    <option value="">📁 Load Saved Route</option>
+  </select>
+  <button onclick="deleteRoute()">🗑️ Delete Route</button>
+  <select id="playSelect">
+    <option value="live">▶️ Play Live Route</option>
+    <option value="saved">▶️ Play Saved Route</option>
+  </select>
+  <button onclick="playRoute()">▶️ Play</button>
+  <button onclick="clearRoute()">🧹 Clear Map</button>
+</div>
+
+<script src="https://unpkg.com/leaflet.wms@1.0.0/leaflet.wms.js"></script>
+
+<!-- Leaflet core JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- Then the Leaflet.heat plugin -->
 <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 {% endblock %}
+
 
 {% block script_extra %}
 <script>
-    // ===== MAP INITIALIZATION =====
-    let map = L.map('map').setView([37.5, 22.37], 16);
-    let routeLine, liveCoords=[], animMarker, startMarker, endMarker, intervalId, heatLayer;
-    let autoUpdate=true, macAddress='08:3A:8D:DE:E5:10';
-    let previousCoords=null, previousTimestamp=null, heatVisible=false;
+let map = L.map('map').setView([37.5, 22.37], 16);
+map.whenReady(() => {
+  const center = map.getCenter();
+  fetchMarineWeather(center.lat, center.lng);
+});
 
-      // ===== TILE LAYERS =====
-      const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      });
-      const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri'
-      });
-      const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CartoDB',
-        subdomains:'abcd'
-      });
-      const toner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
-        attribution:'Stamen'
-      });
-      const tileLayers = { osm, satellite, dark, toner };
+setInterval(() => {
+  const center = map.getCenter();
+  fetchMarineWeather(center.lat, center.lng);
+}, 30000); // every 30s
 
-      // OpenSeaMap layers without unsupported transparent option, but with some opacity for visibility
-      const openSeaLayers = {
-        seamark: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
-          attribution:'© OpenSeaMap', opacity: 0.8 }),
-        depth: L.tileLayer('https://tiles.openseamap.org/seabath/{z}/{x}/{y}.png', {
-          attribution:'© OpenSeaMap', opacity: 0.6 }),
-        harbour: L.tileLayer('https://tiles.openseamap.org/harbour/{z}/{x}/{y}.png', {
-          attribution:'© OpenSeaMap', opacity: 0.7 }),
-        light: L.tileLayer('https://tiles.openseamap.org/lighthouses/{z}/{x}/{y}.png', {
-          attribution:'© OpenSeaMap', opacity: 0.9 }),
-        aerialway: L.tileLayer('https://tiles.openseamap.org/aerialway/{z}/{x}/{y}.png', {
-          attribution:'© OpenSeaMap', opacity: 0.7 }),
-      };
 
-      // ===== MAP STYLE CONTROL =====
-      function changeMapStyle(style){
-        // Remove all base tile layers first
-        Object.values(tileLayers).forEach(l => map.removeLayer(l));
-        // Remove all OpenSeaMap overlays
-        Object.values(openSeaLayers).forEach(l => map.removeLayer(l));
+let routeLine = null;
+let liveCoords = [];
+let animMarker = null;
+let startMarker = null;
+let endMarker = null;
 
-        if(style === 'opensea'){
-          document.getElementById('opensea-options').style.display = 'inline-block';
+let autoUpdate = true;
+let intervalId = null;
+let heatLayer = null;
 
-          // Add base OSM layer
-          osm.addTo(map);
+let isRecording = false;
+let recordedCoords = [];
 
-          // Add overlays from checked boxes
-          Object.keys(openSeaLayers).forEach(key => {
-            const cb = document.querySelector(`#opensea-options input[value=${key}]`);
-            if(cb && cb.checked){
-              openSeaLayers[key].addTo(map);
-            }
-          });
-        } else {
-          document.getElementById('opensea-options').style.display = 'none';
-          tileLayers[style].addTo(map);
-        }
+let speedLayerGroup = L.layerGroup().addTo(map);
+
+const activeOpenSeaLayers = {};  // keep track of which are active
+
+let windEnabled = true;  // default wind visualization enabled
+
+function toggleWind() {
+  windEnabled = !windEnabled;
+
+  const btn = document.getElementById('windToggleBtn');
+  if (windEnabled) {
+    btn.textContent = '🌬️ Disable Wind';
+    refreshWindData();    // update wind arrows immediately
+    map.on('moveend', refreshWindData);  // enable live updates
+    document.getElementById('wind-panel').style.display = 'block';
+  } else {
+    btn.textContent = '🌬️ Enable Wind';
+    map.off('moveend', refreshWindData); // stop updates
+    clearWindMarkers();                   // remove arrows
+    document.getElementById('wind-panel').style.display = 'none';
+  }
+}
+
+function fetchMarineWeather(lat, lon) {
+  const url = `/api/marine_weather?lat=${lat}&lon=${lon}`;
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
+      const w = data?.weather;
+      const el = document.getElementById('weather-panel');
+      if (!el) return;
+
+      if (!w) {
+        el.innerHTML = "🌊 <b>Marine Weather</b><br><i>No data available.</i>";
+        return;
       }
 
-      // ===== TOGGLE OPENSEAMAP LAYERS =====
-      function toggleOpenSeaLayer(checkbox, layerKey){
-        if(checkbox.checked){
-          openSeaLayers[layerKey].addTo(map);
-        } else {
-          map.removeLayer(openSeaLayers[layerKey]);
-        }
+      el.innerHTML = `
+        🌊 <b>Marine Weather</b><br>
+        🌬 <b>Wind:</b> ${w.wind_speed_kn} kn ${w.wind_dir_txt} (${w.wind_dir}°)<br>
+        🌡 <b>Air Temp:</b> ${w.air_temperature} °C<br>
+        🌊 <b>Waves:</b> ${w.wave_height} m<br>
+        🧭 <b>Pressure:</b> ${w.air_pressure} hPa
+      `;
+    })
+    .catch(err => {
+      console.error("Failed to fetch marine weather:", err);
+      const el = document.getElementById('weather-panel');
+      if (el) {
+        el.innerHTML = "🌊 <b>Marine Weather</b><br><i>Error loading data.</i>";
+      }
+    });
+}
+
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+});
+
+
+const satellite = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
+    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Earthstar Geographics'
+  }
+);
+
+const dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; CartoDB',
+  subdomains: 'abcd'
+});
+
+const toner = L.tileLayer('https://stamen-tiles.a.ssl.fastly.net/toner/{z}/{x}/{y}.png', {
+  attribution: 'Map tiles by Stamen Design'
+});
+
+const openSeaMap = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+  attribution: 'Map data © OpenSeaMap contributors',
+  transparent: true
+});
+
+const weatherOverlay = L.tileLayer('https://tiles.openseamap.org/weather/{z}/{x}/{y}.png', {
+  attribution: 'Weather © OpenSeaMap contributors'
+});
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+
+const tileLayers = {
+  osm: osm,
+  satellite: satellite,
+  dark: dark,
+  toner: toner,
+  opensea: L.layerGroup([osm, openSeaMap])  // ⬅️ Add OpenSeaMap as a layer group
+};
+
+const openSeaLayers = {
+  seamark: L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+  depth: L.tileLayer('https://tiles.openseamap.org/seabath/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+  harbour: L.tileLayer('https://tiles.openseamap.org/harbour/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+  light: L.tileLayer('https://tiles.openseamap.org/lighthouses/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+  aerialway: L.tileLayer('https://tiles.openseamap.org/aerialway/{z}/{x}/{y}.png', {
+    attribution: '© OpenSeaMap contributors',
+    transparent: true
+  }),
+};
+
+const openSeaWMSLayers = {
+  depth_10m: L.tileLayer.wms("https://ows.seamap.nl/bathymetry?", {
+    layers: 'depth10m',
+    styles: '',
+    format: 'image/png',
+    transparent: true,
+    version: '1.1.1',
+    attribution: '© OpenSeaMap bathymetry',
+  }),
+  depth_100m: L.tileLayer.wms("https://ows.seamap.nl/bathymetry?", {
+    layers: 'depth100m',
+    styles: '',
+    format: 'image/png',
+    transparent: true,
+    version: '1.1.1',
+    attribution: '© OpenSeaMap bathymetry',
+  })
+};
+
+<!--let marineProfileLayer = null;-->
+
+function toggleMarineProfile() {
+  const checked = document.getElementById("marineProfileToggle").checked;
+
+  if (checked) {
+    if (!marineProfileLayer) {
+      marineProfileLayer = L.tileLayer.wms("https://tiles.openseamap.org/seamark/wms", {
+        layers: 'profile',  // this layer loads but renders nothing
+        format: 'image/png',
+        transparent: true,
+        version: '1.1.1',
+        attribution: 'Marine Profile © OpenSeaMap',
+        opacity: 1.0
+      });
+
+      marineProfileLayer.on('loading', () => {
+        console.log("[⏳] Marine Profile tiles loading...");
+      });
+
+      marineProfileLayer.on('load', () => {
+        console.log("[✅] Marine Profile tiles loaded");
+      });
+
+      marineProfileLayer.on('tileerror', (e) => {
+        console.error("[⚠️] Marine Profile tile error", e);
+      });
+    }
+
+    map.addLayer(marineProfileLayer);
+    console.log("[✔] Marine Profile layer added to map");
+  } else {
+    if (marineProfileLayer && map.hasLayer(marineProfileLayer)) {
+      map.removeLayer(marineProfileLayer);
+      console.log("[✘] Marine Profile layer removed from map");
+    }
+  }
+}
+
+
+const marineProfileLayer = L.tileLayer.wms("https://tiles.openseamap.org/seamark/wms", {
+  layers: 'seamark',
+  format: 'image/png',
+  transparent: true,
+  version: '1.1.1',
+  attribution: 'OpenSeaMap Seamarks'
+});
+
+marineProfileLayer.on('loading', () => {
+  console.log("[⏳] Marine Profile tiles loading...");
+});
+
+marineProfileLayer.on('load', () => {
+  console.log("[✅] Marine Profile tiles loaded");
+});
+
+marineProfileLayer.on('tileerror', (e) => {
+  console.error("[⚠️] Marine Profile tile error:", e);
+});
+
+
+map.on('zoomend', () => {
+  const zoom = map.getZoom();
+  const toggle = document.getElementById("marineProfileToggle");
+  if (toggle?.checked && (zoom < 7 || zoom > 12)) {
+    map.removeLayer(marineProfileLayer);
+    toggle.checked = false;
+    alert("Marine Profile is only available at zoom levels ~8–10.");
+  }
+});
+
+function changeMapStyle(style) {
+  // Remove all tile layers
+  Object.values(tileLayers).forEach(layer => map.removeLayer(layer));
+  Object.values(openSeaLayers).forEach(layer => map.removeLayer(layer));
+
+  // Show/hide OpenSea options panel
+  const optionPanel = document.getElementById('opensea-options');
+
+  if (style === 'opensea') {
+    tileLayers['osm'].addTo(map);  // always base
+    optionPanel.style.display = 'inline-block';
+
+    // Add overlays if checkbox is checked
+    for (const [key, layer] of Object.entries(openSeaLayers)) {
+      const checkbox = document.querySelector(`#opensea-options input[type="checkbox"][onchange*="${key}"]`);
+      if (checkbox && checkbox.checked) {
+        layer.addTo(map);
+        activeOpenSeaLayers[key] = true;
+      }
+    }
+
+  } else {
+    tileLayers[style].addTo(map);
+    optionPanel.style.display = 'none';
+  }
+
+  if (currentDepthLayer) {
+  map.removeLayer(currentDepthLayer);
+  currentDepthLayer = null;
+  document.getElementById("depthInterval").value = "";
+}
+document.getElementById("depthContoursBeta").checked = false;
+if (depthContourBetaLayer && map.hasLayer(depthContourBetaLayer)) {
+  map.removeLayer(depthContourBetaLayer);
+}
+
+}
+
+function toggleOpenSeaLayer(layerKey) {
+  const checkbox = event.target;
+  const layer = openSeaLayers[layerKey];
+  if (!layer) return;
+
+  if (checkbox.checked) {
+    if (!map.hasLayer(layer)) layer.addTo(map);
+    activeOpenSeaLayers[layerKey] = true;
+  } else {
+    if (map.hasLayer(layer)) map.removeLayer(layer);
+    delete activeOpenSeaLayers[layerKey];
+  }
+}
+
+let macAddress = '08:3A:8D:DE:E5:10';  // Default MAC address for testing, replace with actual MAC when available
+
+let previousCoords = null;
+let previousTimestamp = null;
+
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371e3; // metres
+  const toRad = x => x * Math.PI / 180;
+
+  const φ1 = toRad(lat1);
+  const φ2 = toRad(lat2);
+  const Δφ = toRad(lat2 - lat1);
+  const Δλ = toRad(lon2 - lon1);
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  const d = R * c;
+  return d;
+}
+
+let depthContourBetaLayer = null;
+
+function toggleDepthContoursBeta() {
+  const checkbox = document.getElementById('depthContoursBeta');
+
+  if (!checkbox) return;
+
+  if (checkbox.checked) {
+    if (!depthContourBetaLayer) {
+      depthContourBetaLayer = L.tileLayer.wms("https://ows.seamap.nl/bathymetry?", {
+        layers: 'depth10m',  // or change to 'depth100m' if preferred
+        format: 'image/png',
+        transparent: true,
+        attribution: '© OpenSeaMap bathymetry (beta)'
+      });
+    }
+    map.addLayer(depthContourBetaLayer);
+  } else {
+    if (depthContourBetaLayer) {
+      map.removeLayer(depthContourBetaLayer);
+    }
+  }
+}
+
+function colorBySpeed() {
+  if (liveCoords.length < 2) return alert("Not enough data");
+
+  const segments = [];
+
+  for (let i = 1; i < liveCoords.length; i++) {
+    const prev = liveCoords[i - 1];
+    const curr = liveCoords[i];
+
+    const distance = haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng); // in meters
+    const timeDelta = (curr.timestamp - prev.timestamp) / 1000; // in seconds
+
+    const speed = (distance / timeDelta) * 3.6; // in km/h
+    let color = 'gray';
+
+    if (speed < 5) color = 'blue';
+    else if (speed < 15) color = 'green';
+    else if (speed < 30) color = 'orange';
+    else color = 'red';
+
+    segments.push({
+      coords: [[prev.lat, prev.lng], [curr.lat, curr.lng]],
+      color
+    });
+  }
+
+  // Clear existing route
+  if (routeLine) {
+    map.removeLayer(routeLine);
+    routeLine = null;
+  }
+  if (startMarker) map.removeLayer(startMarker);
+  if (endMarker) map.removeLayer(endMarker);
+
+  // Draw colored segments
+  for (const segment of segments) {
+    L.polyline(segment.coords, { color: segment.color }).addTo(map);
+  }
+
+  // Optionally re-add start and end markers
+  const start = liveCoords[0];
+  const end = liveCoords[liveCoords.length - 1];
+  startMarker = L.marker([start.lat, start.lng]).addTo(map).bindPopup("🚩 Start");
+  endMarker = L.marker([end.lat, end.lng]).addTo(map).bindPopup("🏁 End");
+}
+
+function getSpeedColor(speed) {
+  if (speed < 10) return 'blue';
+  if (speed < 30) return 'limegreen';
+  if (speed < 60) return 'orange';
+  return 'red';
+}
+
+let currentDepthLayer = null;
+
+function changeDepthLayer(layerKey) {
+  if (currentDepthLayer) {
+    map.removeLayer(currentDepthLayer);
+    currentDepthLayer = null;
+  }
+
+  if (layerKey && openSeaWMSLayers.hasOwnProperty(layerKey)) {
+    currentDepthLayer = openSeaWMSLayers[layerKey];
+    currentDepthLayer.addTo(map);
+  }
+}
+
+
+let heatVisible = false;
+
+function toggleHeatmap() {
+  if (!liveCoords.length) {
+    alert("No GPS data to show heatmap.");
+    return;
+  }
+
+  if (!heatVisible) {
+    const heatData = liveCoords.map(p => [p.lat || p[0], p.lng || p[1], 1]);  // [lat, lng, intensity]
+    heatLayer = L.heatLayer(heatData, { radius: 25, blur: 15, maxZoom: 17 });
+    heatLayer.addTo(map);
+    heatVisible = true;
+    console.log("Heatmap enabled");
+  } else {
+    if (heatLayer) {
+      map.removeLayer(heatLayer);
+      heatLayer = null;
+    }
+    heatVisible = false;
+    console.log("Heatmap disabled");
+  }
+}
+
+
+function fetchLiveRoute(mac) {
+  if (!mac || mac.trim() === '') {
+    console.log("Error: MAC address is missing!");
+    return;
+  }
+
+  console.log("Function: fetchLiveRoute() called");
+
+  // Update MAC label on the UI
+  const macLabelEl = document.getElementById("mac-value");
+  if (macLabelEl) {
+    macLabelEl.textContent = mac;
+    document.getElementById("mac-label").style.display = "block";  // Show the label
+  }
+
+  fetch(`/gps/live?mac=${encodeURIComponent(mac)}`)
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.error) {
+        console.warn("Server returned an error:", data.error);
+        return;
       }
 
-    // ===== GPS / ROUTE UTILS =====
-    function haversineDistance(lat1, lon1, lat2, lon2){
-      const R=6371e3, toRad=x=>x*Math.PI/180;
-      const φ1=toRad(lat1), φ2=toRad(lat2);
-      const Δφ=toRad(lat2-lat1), Δλ=toRad(lon2-lon1);
-      const a=Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
-      return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
-    }
+      const lat = data.latitude;
+      const lng = data.longitude;
+      const now = Date.now();
 
-    function drawRoute(coords, color='blue'){
-      if(routeLine) map.removeLayer(routeLine);
-      if(startMarker) map.removeLayer(startMarker);
-      if(endMarker) map.removeLayer(endMarker);
-      routeLine=L.polyline(coords,{color}).addTo(map);
-      startMarker=L.marker(coords[0]).addTo(map).bindPopup('🚩 Start');
-      endMarker=L.marker(coords[coords.length-1]).addTo(map).bindPopup('🏁 End');
-      map.fitBounds(routeLine.getBounds());
-    }
+      if (typeof lat !== 'number' || typeof lng !== 'number') {
+        console.warn("Invalid GPS data received:", data);
+        return;
+      }
 
-    // ===== LIVE GPS FETCH =====
-    function fetchLiveRoute(mac=macAddress){
-      if(!mac) return console.log("No MAC provided");
-      fetch(`/gps/live?mac=${encodeURIComponent(mac)}`)
-        .then(r=>r.json())
-        .then(data=>{
-          if(data.error) return console.warn(data.error);
-          const {latitude:lat, longitude:lng} = data;
-          const now=Date.now();
-          if(typeof lat!=='number' || typeof lng!=='number') return;
+      console.log(`Live GPS position from server: lat=${lat}, lng=${lng}`);
 
-          document.getElementById("lat-display").textContent=lat.toFixed(6);
-          document.getElementById("lng-display").textContent=lng.toFixed(6);
+      // Update live UI panel
+      const latEl = document.getElementById("lat-display");
+      const lngEl = document.getElementById("lng-display");
+      if (latEl) latEl.textContent = lat.toFixed(6);
+      if (lngEl) lngEl.textContent = lng.toFixed(6);
 
-          const probeEl=document.getElementById("gps-probe");
-          probeEl.classList.remove("gps-on"); void probeEl.offsetWidth; probeEl.classList.add("gps-on");
+      // Blink GPS probe
+      const probeEl = document.getElementById("gps-probe");
+      if (probeEl) {
+        probeEl.classList.remove("gps-on");
+        void probeEl.offsetWidth; // trigger reflow
+        probeEl.classList.add("gps-on");
+      }
 
-          if(previousCoords && previousCoords.lat===lat && previousCoords.lng===lng) return;
+      // Avoid duplicates
+      if (previousCoords && previousCoords.lat === lat && previousCoords.lng === lng) {
+        console.log("Received same coordinates. Skipping.");
+        return;
+      }
 
-          if(previousCoords && previousTimestamp){
-            const speedKph=(haversineDistance(previousCoords.lat, previousCoords.lng, lat, lng)/((now-previousTimestamp)/1000))*3.6;
-            document.getElementById("speed-display").textContent=speedKph.toFixed(2);
-          }
+      // Calculate speed
+      const speedEl = document.getElementById("speed-display");
+      if (previousCoords && previousTimestamp) {
+        const distance = haversineDistance(previousCoords.lat, previousCoords.lng, lat, lng); // meters
+        const timeDelta = (now - previousTimestamp) / 1000; // seconds
+        const speedKph = (distance / timeDelta) * 3.6;
+        if (speedEl) speedEl.textContent = speedKph.toFixed(2);
+        console.log(`Speed: ${speedKph.toFixed(2)} km/h`);
+      }
 
-          previousCoords={lat,lng}; previousTimestamp=now;
-          liveCoords.push({lat,lng,timestamp:now});
-          drawRoute(liveCoords.map(c=>[c.lat,c.lng]),'blue');
-        }).catch(err=>{
-          console.error(err);
-          const probeEl=document.getElementById("gps-probe");
-          probeEl.classList.remove("gps-on"); probeEl.classList.add("gps-off");
+      // Save for next update
+      previousCoords = { lat, lng };
+      previousTimestamp = now;
+
+      // Push to live track array
+      liveCoords.push({
+        0: lat,  // Leaflet polyline format
+        1: lng,
+        lat: lat,
+        lng: lng,
+        timestamp: now
+      });
+
+      if (isRecording) {
+        recordedCoords.push({
+          lat: lat,
+          lng: lng,
+          timestamp: now
         });
-    }
+      }
 
-    // ===== AUTO UPDATE =====
-    function toggleAutoUpdate(){
-      autoUpdate=!autoUpdate;
-      const toggleBtn=document.getElementById('toggleAuto');
-      const refreshBtn=document.getElementById('manualRefresh');
-      toggleBtn.textContent=autoUpdate?"Auto-Update: ON":"Auto-Update: OFF";
-      refreshBtn.style.display=autoUpdate?'none':'inline-block';
-      clearInterval(intervalId);
-      if(autoUpdate && macAddress) intervalId=setInterval(()=>fetchLiveRoute(macAddress),5000);
-    }
-    intervalId=setInterval(()=>macAddress && fetchLiveRoute(macAddress),5000);
+      // Draw the updated route on the map
+      drawRoute(liveCoords.map(c => [c.lat, c.lng]), 'blue');
+    })
+    .catch(err => {
+      console.error("Error fetching GPS coordinates:", err);
+      const probeEl = document.getElementById("gps-probe");
+      if (probeEl) {
+        probeEl.classList.remove("gps-on");
+        probeEl.classList.add("gps-off");
+      }
 
-    // ===== LOGGING =====
-    function toggleLogging(){
-      const btn=document.getElementById('loggingToggle');
-      btn.classList.toggle('off');
-      btn.textContent=btn.classList.contains('off')?"Enable Logging: OFF":"Enable Logging: ON";
-    }
+      // Optional: toast or alert
+      // alert("🚨 Unable to fetch GPS location.");
+    });
+}
 
-    // ===== INITIALIZATION =====
+function toggleRecording() {
+  const btn = document.getElementById('recordToggle');
+  isRecording = !isRecording;
+
+  if (isRecording) {
+    recordedCoords = [];  // Reset previous recording
+    btn.textContent = "⏹️ Stop Recording";
+    btn.style.backgroundColor = "#e53935";  // red
+    console.log("Recording started.");
+  } else {
+    btn.textContent = "⏺️ Start Recording";
+    btn.style.backgroundColor = "#4CAF50";
+    console.log("Recording stopped.");
+
+    if (recordedCoords.length > 1) {
+      const routeName = prompt("Enter name for this recorded route:");
+      if (routeName && routeName.match(/^[a-zA-Z0-9_-]+$/)) {
+        fetch('/routes/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: routeName,
+            coords: recordedCoords.map(p => ({ lat: p.lat, lng: p.lng }))
+          })
+        })
+        .then(() => {
+          alert("Recorded route saved!");
+          fetchSavedRoutes(); // refresh dropdown
+        })
+        .catch(err => {
+          console.error("Error saving recorded route:", err);
+          alert("Failed to save recorded route.");
+        });
+      } else {
+        alert("Invalid or empty route name. Recording discarded.");
+      }
+    } else {
+      alert("Not enough data to save a route.");
+    }
+  }
+}
+
+function toggleAutoUpdate() {
+  autoUpdate = !autoUpdate;
+  const toggleBtn = document.getElementById('toggleAuto');
+  const refreshBtn = document.getElementById('manualRefresh');
+
+  if (autoUpdate) {
+    toggleBtn.textContent = "Auto-Update: ON";
+    refreshBtn.style.display = "none";
+    if (macAddress) {
+      intervalId = setInterval(() => fetchLiveRoute(macAddress), 5000);
+    }
+  } else {
+    toggleBtn.textContent = "Auto-Update: OFF";
+    refreshBtn.style.display = "inline-block";
+    clearInterval(intervalId);
+  }
+}
+
+// Call fetchLiveRoute only if MAC address is valid
+if (macAddress) {
+  fetchLiveRoute(macAddress);  // Initially fetch live route with valid MAC
+} else {
+  console.log("Error: No MAC address to fetch data");
+}
+
+intervalId = setInterval(() => {
+  if (macAddress) {  // Check for a valid MAC address before making the request
     fetchLiveRoute(macAddress);
+  }
+}, 5000);
+
+// Retry function in case of failure
+function retryFetch(mac) {
+  let retries = 3;
+  let attempt = 0;
+
+  const retryInterval = setInterval(() => {
+    if (attempt >= retries) {
+      console.log("Max retry attempts reached.");
+      clearInterval(retryInterval);  // Stop retries after max attempts
+      return;
+    }
+    attempt++;
+    console.log(`Retrying fetch... Attempt ${attempt}`);
+    fetchLiveRoute(mac);  // Attempt to fetch again
+  }, 5000);  // Retry every 5 seconds
+}
+
+// Function to draw the route on the map
+function drawRoute(coords, color) {
+  console.log("Function: drawRoute() called with coords:", coords);  // Debugging entry point
+  if (routeLine) map.removeLayer(routeLine);
+  if (startMarker) map.removeLayer(startMarker);
+  if (endMarker) map.removeLayer(endMarker);
+
+  routeLine = L.polyline(coords, { color: color || 'blue' }).addTo(map);
+  startMarker = L.marker(coords[0], { title: 'Start' }).addTo(map).bindPopup('🚩 Start');
+  endMarker = L.marker(coords[coords.length - 1], { title: 'End' }).addTo(map).bindPopup('🏁 End');
+  map.fitBounds(routeLine.getBounds());
+}
+
+
+// Save current route
+function saveRoute() {
+  console.log("Function: saveRoute() called");  // Debugging entry point
+  if (!liveCoords.length) return alert("Nothing to save.");
+  const name = prompt("Enter name to save this route:");
+  if (!name.match(/^[a-zA-Z0-9_-]+$/)) return alert("Invalid name!");
+  fetch('/routes/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name, coords: liveCoords.map(c => ({ lat: c[0], lng: c[1] })) })
+  }).then(() => {
+    alert("Route saved!");
     fetchSavedRoutes();
+  });
+}
+
+// Load saved route
+function loadRoute() {
+  console.log("Function: loadRoute() called");  // Debugging entry point
+  const name = document.getElementById('savedRoutes').value;
+  if (!name) return;
+  fetch(`/routes/load/${name}`)
+    .then(res => res.json())
+    .then(data => {
+      const loaded = data.map(p => [p.lat, p.lng]);
+      drawRoute(loaded, 'green');
+    });
+}
+
+// Delete saved route
+function deleteRoute() {
+  console.log("Function: deleteRoute() called");  // Debugging entry point
+  const name = document.getElementById('savedRoutes').value;
+  if (!name) return;
+  if (!confirm(`Delete route "${name}"?`)) return;
+  fetch(`/routes/delete/${name}`, { method: 'DELETE' })
+    .then(() => {
+      alert("Route deleted!");
+      fetchSavedRoutes();
+    });
+}
+
+// Play route (live or saved)
+function playRoute() {
+  console.log("Function: playRoute() called");  // Debugging entry point
+  const source = document.getElementById('playSelect').value;
+
+  if (animMarker) map.removeLayer(animMarker);
+
+  if (source === 'live') {
+    if (!liveCoords.length) {
+      alert("No live route data available.");
+      return;
+    }
+    animateRoute(liveCoords);
+  } else {
+    const name = document.getElementById('savedRoutes').value;
+    if (!name) return alert("Select a saved route to play.");
+    fetch(`/routes/load/${name}`)
+      .then(res => res.json())
+      .then(data => {
+        const coords = data.map(p => [p.lat, p.lng]);
+        animateRoute(coords);
+      });
+  }
+}
+
+// Animate route on the map
+function animateRoute(coords) {
+  console.log("Function: animateRoute() called");  // Debugging entry point
+  if (!coords.length) return;
+  let i = 0;
+  animMarker = L.marker(coords[0]).addTo(map);
+  const interval = setInterval(() => {
+    if (i >= coords.length) return clearInterval(interval);
+    animMarker.setLatLng(coords[i++]);
+  }, 300);
+}
+
+// Clear all routes and markers from the map
+function clearRoute() {
+  console.log("Function: clearRoute() called");  // Debugging entry point
+  if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+  if (animMarker) { map.removeLayer(animMarker); animMarker = null; }
+  if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+  if (endMarker) { map.removeLayer(endMarker); endMarker = null; }
+}
+
+function toggleAnalysis() {
+  const widget = document.getElementById('analysis-widget');
+  if (widget.style.display === 'none') {
+    widget.style.display = 'block';
+  } else {
+    widget.style.display = 'none';
+  }
+}
+
+// Fetch saved routes from the server
+function fetchSavedRoutes() {
+  console.log("Function: fetchSavedRoutes() called");  // Debugging entry point
+  fetch('/routes')
+    .then(res => res.json())
+    .then(routes => {
+      const dropdown = document.getElementById('savedRoutes');
+      dropdown.innerHTML = '<option value="">📁 Load Saved Route</option>';
+      routes.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        dropdown.appendChild(opt);
+      });
+    });
+}
+
+// Function to send GPS data to the server via POST
+function sendGpsData(lat, lng, mac) {
+  console.log(`Function: sendGpsData() called with lat: ${lat}, lng: ${lng}, mac: ${mac}`);  // Debugging entry point
+
+  // Get the value of the logging toggle checkbox
+  const loggingEnabled = document.getElementById("loggingToggle").checked;  // true if checked, false if unchecked
+
+  // Prepare the JSON payload
+  const jsonPayload = {
+    latitude: lat,
+    longitude: lng,
+    mac: mac,
+    logging_enabled: loggingEnabled  // Include the logging flag in the request payload
+  };
+
+  // Log the payload before sending
+  console.log(`Sending data: ${JSON.stringify(jsonPayload)}`);
+
+  // Use fetch to send the data as JSON
+  fetch('/gps', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'  // Set content type to JSON
+    },
+    body: JSON.stringify(jsonPayload)  // Convert the object to JSON
+  })
+  .then(response => response.json())  // Expect a JSON response from the server
+  .then(data => {
+    console.log("Data sent successfully:", data);  // Log the server response
+  })
+  .catch(error => {
+    console.error("Error sending GPS data:", error);  // Log any errors
+  });
+}
+
+function detectIdleStops() {
+  console.log("Function: detectIdleStops() called");
+
+  if (liveCoords.length < 2) {
+    alert("Not enough data to detect idle stops.");
+    return;
+  }
+
+  const idleStops = [];
+
+  for (let i = 1; i < liveCoords.length; i++) {
+    const prev = liveCoords[i - 1];
+    const curr = liveCoords[i];
+
+    const distance = haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+    const timeDelta = (curr.timestamp - prev.timestamp) / 1000;
+    const speed = (distance / timeDelta) * 3.6;
+
+    if (speed < 2.0) {  // Consider < 2 km/h as idle
+      idleStops.push(curr);
+    }
+  }
+
+  if (idleStops.length === 0) {
+    alert("No idle stops detected.");
+    return;
+  }
+
+  // Show markers for idle stops
+  idleStops.forEach(point => {
+    L.circleMarker([point.lat, point.lng], {
+      color: 'red',
+      radius: 6
+    }).addTo(map).bindPopup("🛑 Idle stop");
+  });
+
+  alert(`Detected ${idleStops.length} idle stops.`);
+}
+
+// Show speed graph
+function showSpeedGraph() {
+  console.log("Function: showSpeedGraph() called");
+  if (liveCoords.length < 2) return alert("Not enough data");
+
+  const speeds = [];
+  const labels = [];
+
+  for (let i = 1; i < liveCoords.length; i++) {
+    const prev = liveCoords[i - 1];
+    const curr = liveCoords[i];
+
+    const distance = haversineDistance(prev.lat, prev.lng, curr.lat, curr.lng); // meters
+    const timeDelta = (curr.timestamp - prev.timestamp) / 1000; // seconds
+
+    const speed = (distance / timeDelta) * 3.6; // km/h
+    speeds.push(speed.toFixed(2));
+    labels.push(i); // just use point index as label
+  }
+
+  const ctx = document.createElement('canvas');
+  ctx.style.width = "600px";
+  ctx.style.height = "300px";
+  ctx.style.display = "block";
+  ctx.style.margin = "30px auto";
+  document.body.appendChild(ctx);
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Speed (km/h)',
+        data: speeds,
+        borderColor: 'orange',
+        fill: false,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true }
+      },
+      scales: {
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+function loadHistoricalRoute() {
+  const mac = document.getElementById('macInput').value.trim();
+  const date = document.getElementById('dateInput').value;
+
+  if (!mac) {
+    alert("Please enter a MAC address.");
+    return;
+  }
+
+  const url = `/api/coords?mac=${encodeURIComponent(mac)}${date ? `&date=${date}` : ''}`;
+  console.log("Loading route from:", url);
+
+  fetch(url)
+    .then(res => res.json())
+    .then(data => {
+      if (!Array.isArray(data) || data.length === 0) {
+        alert("No data found for this MAC/date.");
+        return;
+      }
+
+      const latlngs = data.map(p => [p.lat, p.lng]);
+
+      // Clear previous route
+      if (routeLine) {
+        map.removeLayer(routeLine);
+        routeLine = null;
+      }
+      if (startMarker) map.removeLayer(startMarker);
+      if (endMarker) map.removeLayer(endMarker);
+
+      // Draw new route
+      routeLine = L.polyline(latlngs, { color: 'red' }).addTo(map);
+      startMarker = L.marker(latlngs[0]).addTo(map).bindPopup("🚩 Start");
+      endMarker = L.marker(latlngs[latlngs.length - 1]).addTo(map).bindPopup("🏁 End");
+      map.fitBounds(routeLine.getBounds());
+
+      // Save inputs for next load
+      localStorage.setItem("lastMac", mac);
+      if (date) localStorage.setItem("lastDate", date);
+    })
+    .catch(err => {
+      console.error("Error loading historical route:", err);
+      alert("Failed to load route.");
+    });
+}
+
+// Load last used MAC/date on page load
+window.addEventListener("DOMContentLoaded", () => {
+  const savedMac = localStorage.getItem("lastMac");
+  const savedDate = localStorage.getItem("lastDate");
+  if (savedMac) document.getElementById("macInput").value = savedMac;
+  if (savedDate) document.getElementById("dateInput").value = savedDate;
+  document.getElementById('windToggleBtn').textContent = '🌬️ Disable Wind';
+});
+
+function makeWidgetDraggable(widgetId, handleId) {
+  const widget = document.getElementById(widgetId);
+  const handle = document.getElementById(handleId);
+
+  let offsetX = 0, offsetY = 0, isDragging = false;
+
+  // Make Leaflet ignore this widget
+  if (window.L && L.DomEvent) {
+    L.DomEvent.disableClickPropagation(widget);
+    L.DomEvent.disableScrollPropagation(widget);
+  }
+
+  handle.onmousedown = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    isDragging = true;
+    offsetX = e.clientX - widget.offsetLeft;
+    offsetY = e.clientY - widget.offsetTop;
+    document.addEventListener('mousemove', onMouseMove, true);
+    document.addEventListener('mouseup', stopDragging, true);
+    handle.style.cursor = 'grabbing';
+  };
+
+  function onMouseMove(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    e.stopPropagation();
+    widget.style.left = `${e.clientX - offsetX}px`;
+    widget.style.top = `${e.clientY - offsetY}px`;
+    widget.style.right = "auto";
+  }
+
+  function stopDragging(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isDragging = false;
+    document.removeEventListener('mousemove', onMouseMove, true);
+    document.removeEventListener('mouseup', stopDragging, true);
+    handle.style.cursor = 'grab';
+  }
+}
+
+// Initialize draggable on DOM ready
+document.addEventListener("DOMContentLoaded", () => {
+  makeWidgetDraggable("recording-widget", "recording-widget-header");
+  makeWidgetDraggable("analysis-widget", "analysis-widget-header");
+});
+
+// Maintain markers for wind arrows
+let windMarkers = [];
+
+// Clear wind markers from the map
+function clearWindMarkers() {
+  windMarkers.forEach(m => map.removeLayer(m));
+  windMarkers = [];
+}
+
+// Generate grid points over map bounds with given spacing
+function generateGridPoints(sw, ne, step = 0.3) {
+  const points = [];
+  for (let lat = sw.lat; lat <= ne.lat; lat += step) {
+    for (let lng = sw.lng; lng <= ne.lng; lng += step) {
+      points.push({ lat, lng });
+    }
+  }
+  return points;
+}
+
+// Fetch Open-Meteo wind data for one point
+async function fetchWindForPoint(lat, lng) {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('API error');
+    const data = await resp.json();
+    if (data.current_weather) {
+      return {
+        lat,
+        lng,
+        speed: data.current_weather.windspeed,
+        direction: data.current_weather.winddirection
+      };
+    }
+  } catch (e) {
+    console.warn(`Failed to fetch wind data for ${lat},${lng}`, e);
+  }
+  return null;
+}
+
+// Fetch wind data for all points grid with concurrency control
+async function fetchWindGrid(points) {
+  const results = [];
+  const concurrency = 5;
+  for (let i = 0; i < points.length; i += concurrency) {
+    const batch = points.slice(i, i + concurrency);
+    const batchResults = await Promise.all(batch.map(p => fetchWindForPoint(p.lat, p.lng)));
+    results.push(...batchResults.filter(r => r !== null));
+  }
+  return results;
+}
+
+// Map wind speed to arrow color
+function getWindColor(speed) {
+  if (speed < 2) return 'lightblue';
+  if (speed < 5) return 'cyan';
+  if (speed < 8) return 'lime';
+  if (speed < 12) return 'orange';
+  return 'red';
+}
+
+// Display wind arrows on the map
+function displayWindGrid(windData) {
+  clearWindMarkers();
+  windData.forEach(({ lat, lng, speed, direction }) => {
+    const icon = L.divIcon({
+      className: 'wind-arrow',
+      html: `<div style="transform: rotate(${direction}deg);
+                         font-size: 28px;
+                         text-shadow: 0 0 6px rgba(0,0,0,0.7);
+                         color: ${getWindColor(speed)};">&#8593;</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+    const marker = L.marker([lat, lng], { icon }).addTo(map);
+    windMarkers.push(marker);
+  });
+}
+
+// Update the wind info panel to show average speed and direction
+function updateWindPanel(speed, direction) {
+  const panel = document.getElementById('wind-panel');
+  panel.style.display = 'block';
+  panel.innerHTML = `<b>Average Wind</b><br>Speed: ${speed.toFixed(2)} m/s<br>Direction: ${direction.toFixed(0)}&deg;`;
+}
+
+// Fetch and update wind data for current viewport
+async function refreshWindData() {
+  const bounds = map.getBounds();
+console.log("Map bounds SW", bounds.getSouthWest(), "NE", bounds.getNorthEast());
+// Reduce step size for denser grid
+const points = generateGridPoints(bounds.getSouthWest(), bounds.getNorthEast(), 0.1);
+console.log("Grid points count:", points.length);
+  const windData = await fetchWindGrid(points);
+
+  if (!windData.length) {
+    console.warn("No wind data received");
+    document.getElementById('wind-panel').style.display = 'none';
+    clearWindMarkers();
+    return;
+  }
+
+  displayWindGrid(windData);
+
+  // Calculate average wind vector
+  let avgSpeed = 0, avgX = 0, avgY = 0;
+  windData.forEach(({ speed, direction }) => {
+    avgSpeed += speed;
+    avgX += speed * Math.cos(direction * Math.PI / 180);
+    avgY += speed * Math.sin(direction * Math.PI / 180);
+  });
+  avgSpeed /= windData.length;
+  const avgDir = (Math.atan2(avgY, avgX) * 180 / Math.PI + 360) % 360;
+
+  updateWindPanel(avgSpeed, avgDir);
+}
+
+// Call once initially, and on every map moveend
+refreshWindData();
+let windRefreshTimeout = null;
+map.on('moveend', () => {
+  if (windRefreshTimeout) clearTimeout(windRefreshTimeout);
+  windRefreshTimeout = setTimeout(refreshWindData, 1000); // 1 second debounce delay
+});
+
+// In fetchWindGrid(points), reduce concurrency:
+const concurrency = 3;  // Reduce further if needed
+
+
+fetchSavedRoutes();
 </script>
 {% endblock %}
