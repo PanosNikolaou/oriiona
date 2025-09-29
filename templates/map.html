@@ -20,8 +20,8 @@
   .top-panel button, .top-panel select {
     background-color: #4CAF50;
     color: white;
-    padding: 10px 15px;
-    margin: 5px 10px;
+    padding: 10px 10px 10px 10px;
+    margin: 0px 0px 10px 10px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -50,8 +50,8 @@
 /* --- Analysis Widget (matches Route Controls style) --- */
 #analysis-widget {
   position: fixed; /* fixed as route widget */
-  top: 120px;
-  right: 40px;
+  top: 500px;
+  left: 305px;
   z-index: 2000;
   width: 220px; /* same fixed width */
   background-color: rgba(34, 34, 34, 0.95);
@@ -112,14 +112,14 @@
   user-select: none;
   pointer-events: none;
   font-size: 28px !important;
-  text-shadow: 0 0 4px black;
+  text-shadow: 0 0 1px black;
 }
 
 /* Wind info panel */
 #wind-panel {
   position: absolute;
-  top: 10px;
-  right: 40px;
+  top: 20px;
+  right: 240px;
   background: rgba(34,34,34,0.85);
   border-radius: 8px;
   padding: 10px 15px;
@@ -243,8 +243,8 @@
 body { position: relative; min-height: 100vh; }
 #recording-widget {
   position: fixed;
-  top: 120px;
-  right: 40px;
+  top: 400px;
+  right: 50px;
   z-index: 2000;
   background-color: rgba(34, 34, 34, 0.95);
   color: white;
@@ -303,19 +303,19 @@ body { position: relative; min-height: 100vh; }
     user-select: none;
   }
 
-  /* Wind info panel */
-  #wind-panel {
-    position: absolute;
-    top: 10px;
-    right: 40px;
-    background: rgba(34,34,34,0.85);
-    border-radius: 8px;
-    padding: 10px 15px;
-    color: white;
-    font-family: Arial, sans-serif;
-    z-index: 2100;
-    pointer-events: none;
-  }
+<!--  /* Wind info panel */-->
+<!--  #wind-panel {-->
+<!--    position: absolute;-->
+<!--    top: 10px;-->
+<!--    right: 40px;-->
+<!--    background: rgba(34,34,34,0.85);-->
+<!--    border-radius: 8px;-->
+<!--    padding: 10px 15px;-->
+<!--    color: white;-->
+<!--    font-family: Arial, sans-serif;-->
+<!--    z-index: 2100;-->
+<!--    pointer-events: none;-->
+<!--  }-->
 
 </style>
 
@@ -1168,7 +1168,7 @@ function clearRoute() {
 function toggleAnalysis() {
   const widget = document.getElementById('analysis-widget');
   if (widget.style.display === 'none') {
-    widget.style.display = 'block';
+    widget.style.display = 'flex';
   } else {
     widget.style.display = 'none';
   }
